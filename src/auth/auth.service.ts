@@ -5,10 +5,12 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { DataSource, LessThan, QueryFailedError, Repository } from 'typeorm';
 import { AppException } from '../common/errors/app.exception.js';
+import { LedgerReasons } from '../shop/products.js';
 import type { AccessTokenPayload } from '../common/guards/jwt-auth.guard.js';
 import { User } from '../users/entities/user.entity.js';
 import { normalizeName, UsersService } from '../users/users.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
+import { AppleSignInService } from './apple-sign-in.service.js';
 import { AppleService } from './apple.service.js';
 import { AuthResponse, TokenPair } from './dto/auth.response.js';
 import { AuthIdentity, AuthProvider } from './entities/auth-identity.entity.js';
@@ -16,7 +18,7 @@ import { RefreshToken } from './entities/refresh-token.entity.js';
 import { KakaoService } from './kakao.service.js';
 import { SocialProfile } from './social-profile.js';
 
-export const SIGNUP_GIFT_REASON = '가입 선물';
+export const SIGNUP_GIFT_REASON = LedgerReasons.signupGift;
 
 export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
@@ -41,6 +43,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly kakao: KakaoService,
     private readonly apple: AppleService,
+    private readonly appleSignIn: AppleSignInService,
     private readonly wallet: WalletService,
     private readonly users: UsersService,
   ) {}
@@ -53,9 +56,21 @@ export class AuthService {
   async loginWithApple(
     identityToken: string,
     nonce?: string,
+    authorizationCode?: string,
   ): Promise<AuthResponse> {
     const profile = await this.apple.verify(identityToken, nonce);
-    return this.login('apple', profile);
+    const response = await this.login('apple', profile);
+    if (authorizationCode) {
+      // 탈퇴할 때 철회할 refresh token을 받아 둔다 (실패해도 로그인은 된다)
+      const encrypted = await this.appleSignIn.exchangeCode(authorizationCode);
+      if (encrypted) {
+        await this.identities.update(
+          { provider: 'apple', providerSub: profile.sub },
+          { providerRefreshToken: encrypted },
+        );
+      }
+    }
+    return response;
   }
 
   /** 개발 전용 로그인. 컨트롤러의 DevOnlyGuard가 운영에서 막는다 */
