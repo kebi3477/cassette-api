@@ -309,6 +309,8 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 | ✅ | POST | `/share/{token}/web/audio` | 웹 재생 URL @공개 |
 | ✅ | GET | `/t/{token}` | 모바일 웹 페이지(HTML, `/api` 밖) @공개 |
 | ✅ | GET | `/static/og-image.png` | 링크 미리보기 대표 이미지 (`/api` 밖) @공개 |
+| ✅ | GET | `/privacy` | 개인정보 처리방침 (HTML, `/api` 밖) @공개 |
+| ✅ | GET | `/terms` | 이용약관 (HTML, `/api` 밖) @공개 |
 | ✅ | GET | `/.well-known/apple-app-site-association` · `/.well-known/assetlinks.json` | 유니버설 링크·앱 링크 (`/api` 밖, 환경 변수가 없으면 404) @공개 |
 | ✅ | GET | `/wallet` | 잔액 + 오늘 남은 광고 |
 | ✅ | GET | `/wallet/ledger` | 크레딧 내역 |
@@ -705,6 +707,12 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 
 `GET /static/og-image.png`(대표 이미지), `/.well-known/apple-app-site-association`(`/t/*`), `/.well-known/assetlinks.json`도 제공한다(환경 변수 `APPLE_APP_ID`, `ANDROID_PACKAGE_NAME`, `ANDROID_SHA256_FINGERPRINTS`가 없으면 404).
 
+
+### ✅ `GET /privacy` · `GET /terms` @공개 (`/api` 밖, HTML)
+개인정보 처리방침과 이용약관. 앱은 설정 → 정보에서 **외부 브라우저나 인앱 웹뷰로** 열고, 스토어 등록 URL로도 쓴다(`https://<도메인>/privacy`, `https://<도메인>/terms`).
+- 링크 웹 페이지와 같은 톤(SUIT, 토큰 색), 스크립트 없음, `Content-Security-Policy`는 요청마다 새 nonce(`style-src 'nonce-…'`, `script-src 'none'`)
+- 운영자 정보(상호, 보호책임자, 이메일, 사업자 정보, 시행일)는 환경 변수 `POLICY_*`에서 읽고, 비어 있으면 "준비 중"으로 표시한다
+- 내용과 버전 관리는 `src/policy/`, 확인이 필요한 항목은 `docs/policy.md`
 ---
 
 ## 13. wallet
@@ -943,6 +951,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`
 | 날짜 | 내용 |
 |---|---|
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |
+| 2026-09-25 | 개인정보 처리방침 `GET /privacy`·이용약관 `GET /terms` 추가 (HTML, `/api` 밖, 앱 설정 → 정보와 스토어 등록 URL용) |
 | 2026-09-25 | 정책 확정: 탈퇴 후 30일 재가입 제한(`403 REJOIN_RESTRICTED` + `availableAt`, 30일 뒤 재가입 시 가입 선물 다시 지급), 탈퇴 데이터 정책 확정, 만료 링크 다시 공유 동작 확정 |
 | 2026-09-25 | 링크 웹 페이지 `/t/{token}`을 디자인 하이파이(webOn·leOn)로 다시 만듦: 소포 뜯기 → 테이프 재생, 남은 기간 계산, "앱에서 열기"(`cassette://` 스킴), Open Graph, CSP nonce. `GET /static/og-image.png` 추가 |
 | 2026-09-25 | `POST /billing/iap`의 `store` 값(`app_store` · `play`)과 잘못된 값의 오류(`VALIDATION_FAILED`)를 명시 |

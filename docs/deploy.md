@@ -12,7 +12,7 @@
 ```
 인터넷 ─443─▶ 공유기 ─▶ myhandball-caddy (HTTPS, 인증서 자동)
                          └ cassette.lab241.com ─▶ cassette-edge:80 ─┬─ /cassette/* ─▶ s3:9000 (녹음 파일, presigned URL)
-                                                                     └─ 그 밖 ───────▶ api:3000 (/api, /t, /.well-known, /static)
+                                                                     └─ 그 밖 ───────▶ api:3000 (/api, /t, /.well-known, /static, /privacy, /terms)
 ```
 
 - 도메인 하나로 전부 받는다: `PUBLIC_BASE_URL=https://cassette.lab241.com`, `S3_PUBLIC_ENDPOINT=https://cassette.lab241.com`(버킷 경로 `/cassette/*`로 저장소(SeaweedFS)에 간다).
@@ -203,6 +203,17 @@ docker compose --env-file .env.production logs -f api     # "Migration ... has b
 | `OFFSITE_POSTGRES_RETENTION` | 선택 | 외부 DB 덤프 보관 기간. 기본 `30d` |
 | `OFFSITE_DELETED_RETENTION` | 선택 | 저장소에서 지워진 파일을 외부에 남기는 기간. 기본 `30d` |
 
+### 개인정보 처리방침 · 이용약관 (`/privacy`, `/terms`)
+비어 있으면 페이지에 "준비 중"으로 표시하고, 운영에서는 시작할 때 경고 로그만 남긴다(서버는 뜬다). 문서 내용과 사용자 확인이 필요한 항목은 `docs/policy.md`.
+
+| 변수 | 필수 | 설명 |
+|---|---|---|
+| `POLICY_OPERATOR_NAME` | 권장 | 상호 또는 운영자 이름 (개인사업자 등록 후 상호) |
+| `POLICY_CONTACT_EMAIL` | 권장 | 문의·개인정보 보호책임자 연락 이메일 |
+| `POLICY_PRIVACY_OFFICER` | 권장 | 개인정보 보호책임자 이름 |
+| `POLICY_BUSINESS_INFO` | 선택 | 사업자등록번호 · 통신판매업 신고번호 (예: `사업자등록번호 000-00-00000 · 통신판매업 신고 제2026-서울○○-0000호`) |
+| `POLICY_EFFECTIVE_DATE` | 권장 | 시행일 `YYYY-MM-DD` |
+
 ---
 
 ## 5. 콘솔에 등록할 URL
@@ -220,6 +231,7 @@ docker compose --env-file .env.production logs -f api     # "Migration ... has b
 | Android 앱 | intent-filter (autoVerify) | `https://<도메인>/t/*` |
 | Kakao Developers | 플랫폼 → iOS 번들 ID / Android 패키지·키 해시 | 앱 설정 |
 | Uptime Kuma 등 | HTTP 모니터 | `https://api.<도메인>/api/health` |
+| App Store Connect · Google Play Console | 개인정보 처리방침 URL · (Play) 이용약관 | `https://<도메인>/privacy` · `https://<도메인>/terms` (지금 미니PC: `https://cassette.lab241.com/privacy`, `/terms`) |
 
 ---
 

@@ -1,0 +1,68 @@
+import { INestApplication } from '@nestjs/common';
+import request from 'supertest';
+import type { App } from 'supertest/types';
+import { createApp } from './utils.js';
+
+describe('정책 페이지 /privacy · /terms (e2e, 운영자 정보 없음)', () => {
+  let app: INestApplication<App>;
+
+  beforeAll(async () => {
+    app = await createApp();
+  });
+  afterAll(() => app.close());
+
+  const nonceOf = (csp: string) => /style-src 'nonce-([^']+)'/.exec(csp)?.[1];
+
+  it.each([
+    ['/privacy', '개인정보 처리방침'],
+    ['/terms', '이용약관'],
+  ])('%s: 200, CSP nonce, 스크립트 없음', async (path, title) => {
+    const res = await request(app.getHttpServer()).get(path).expect(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.text).toContain(`<h1>${title}</h1>`);
+    const csp = res.headers['content-security-policy'] as string;
+    const nonce = nonceOf(csp);
+    expect(nonce).toBeTruthy();
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("script-src 'none'");
+    expect(res.text).toContain(`<style nonce="${nonce}">`);
+    expect(res.text).not.toMatch(/<script/);
+    expect(res.text).not.toMatch(/ style="/);
+    const again = await request(app.getHttpServer()).get(path).expect(200);
+    expect(
+      nonceOf(again.headers['content-security-policy'] as string),
+    ).not.toBe(nonce);
+    // 초안 표시는 본문에 노출하지 않는다
+    expect(res.text).not.toContain('검토 전');
+  });
+
+  it('운영자 정보가 비어 있으면 "준비 중"으로 표시한다', async () => {
+    const privacy = await request(app.getHttpServer())
+      .get('/privacy')
+      .expect(200);
+    expect(privacy.text).toContain('시행일 준비 중');
+    expect(privacy.text).toContain(
+      '<td data-label="구분">개인정보 보호책임자</td><td data-label="내용" class="pending">준비 중</td>',
+    );
+    expect(privacy.text).toContain(
+      '<td data-label="구분">이메일</td><td data-label="내용" class="pending">준비 중</td>',
+    );
+    const terms = await request(app.getHttpServer()).get('/terms').expect(200);
+    expect(terms.text).toContain(
+      '<td data-label="구분">사업자 정보</td><td data-label="내용" class="pending">준비 중</td>',
+    );
+  });
+
+  it('코드의 실제 수치를 쓴다 (링크 7일, 재가입 30일, 백업 14개, 광고 하루 3번)', async () => {
+    const privacy = (await request(app.getHttpServer()).get('/privacy')).text;
+    expect(privacy).toContain('링크는 7일 동안 유효합니다');
+    expect(privacy).toContain('30일(재가입 제한 기간)');
+    expect(privacy).toContain('최근 14개(약 14일)');
+    expect(privacy).toContain('HMAC-SHA256');
+    const terms = (await request(app.getHttpServer()).get('/terms')).text;
+    expect(terms).toContain(
+      '탈퇴하고 30일 동안은 같은 카카오·Apple 계정으로 다시 가입할 수 없습니다',
+    );
+    expect(terms).toContain('하루 3번까지');
+  });
+});

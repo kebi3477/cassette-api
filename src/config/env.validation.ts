@@ -1,6 +1,7 @@
 import { plainToInstance, Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsEmail,
   IsIn,
   IsInt,
   IsOptional,
@@ -202,6 +203,48 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   APPLE_SIGN_IN_PRIVATE_KEY?: string;
+
+  // ---- 개인정보 처리방침 · 이용약관 (/privacy, /terms). 비어 있으면 페이지에 "준비 중"으로 표시 ----
+
+  /** 상호 또는 운영자 이름 */
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  )
+  @IsString()
+  POLICY_OPERATOR_NAME?: string;
+
+  /** 문의·개인정보 보호책임자 연락 이메일 */
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  )
+  @IsEmail()
+  POLICY_CONTACT_EMAIL?: string;
+
+  /** 개인정보 보호책임자 이름 */
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  )
+  @IsString()
+  POLICY_PRIVACY_OFFICER?: string;
+
+  /** 사업자등록번호 · 통신판매업 신고번호 등 (선택) */
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  )
+  @IsString()
+  POLICY_BUSINESS_INFO?: string;
+
+  /** 처리방침·약관 시행일 (YYYY-MM-DD) */
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  )
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  POLICY_EFFECTIVE_DATE?: string;
 
   /** 유니버설 링크(apple-app-site-association)용 "<TEAM ID>.<번들 ID>" */
   @IsOptional()

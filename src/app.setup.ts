@@ -10,6 +10,8 @@ export function setupApp(app: INestApplication): INestApplication {
     exclude: [
       { path: 't/:token', method: RequestMethod.GET },
       { path: 'static/og-image.png', method: RequestMethod.GET },
+      { path: 'privacy', method: RequestMethod.GET },
+      { path: 'terms', method: RequestMethod.GET },
       {
         path: '.well-known/apple-app-site-association',
         method: RequestMethod.GET,

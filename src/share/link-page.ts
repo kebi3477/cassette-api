@@ -108,7 +108,7 @@ export interface PageContext {
   androidIntentUrl: string | null;
 }
 
-const LOGO = (id: string, fill: string, size: number) =>
+export const LOGO = (id: string, fill: string, size: number) =>
   `<svg viewBox="0 0 48 48" width="${size}" height="${size}" class="logo" aria-hidden="true"><mask id="${id}"><rect width="48" height="48" fill="#fff"/><circle cx="14" cy="23" r="3" fill="#000"/><circle cx="34" cy="23" r="3" fill="#000"/></mask><g fill="${fill}" mask="url(#${id})"><circle cx="14" cy="23" r="8.5"/><circle cx="34" cy="23" r="8.5"/><rect x="14" y="29" width="20" height="2.5"/></g></svg>`;
 
 const KEYFRAMES = `
