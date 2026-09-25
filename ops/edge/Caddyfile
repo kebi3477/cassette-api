@@ -21,6 +21,14 @@
 		}
 	}
 
+	# AdMob app-ads.txt (스토어 등록의 개발자 웹사이트 = https://cassette.lab241.com)
+	# 게시자 ID는 AdMob 앱 ID(ca-app-pub-<게시자>~…)의 <게시자> 부분
+	handle /app-ads.txt {
+		header Content-Type "text/plain; charset=utf-8"
+		respond "google.com, pub-6280185901199691, DIRECT, f08c47fec0942fa0
+" 200
+	}
+
 	# 나머지: API(/api/*), 링크 페이지(/t/*), /.well-known/*, /static/*, 정책 페이지(/privacy, /terms)
 	handle {
 		reverse_proxy cassette-api:3000 {
