@@ -35,6 +35,7 @@ export class JobsService {
       ['Play consume', () => this.billing.retryPlayConsumes()],
       ['재가입 제한 기록', () => this.rejoin.cleanupExpired()],
       ['변환 끝난 녹음 원본', () => this.cleanupReadyRaw()],
+      ['5년 지난 결제 기록', () => this.billing.purgeExpiredPaymentRecords()],
     ] as const) {
       try {
         const n = await job();

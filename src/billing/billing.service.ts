@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, IsNull } from 'typeorm';
+import { DataSource, IsNull, LessThan } from 'typeorm';
+import { ClockService } from '../common/services/clock.service.js';
 import { AppException } from '../common/errors/app.exception.js';
 import { findCreditPack, LedgerReasons } from '../shop/products.js';
 import { User } from '../users/entities/user.entity.js';
@@ -22,6 +23,9 @@ export interface IapResponse {
   entry: LedgerEntryResponse | null;
 }
 
+/** 결제 기록 보관 기간(년). 「전자상거래 등에서의 소비자보호에 관한 법률」의 대금결제·재화 공급 기록 */
+export const PAYMENT_RECORD_RETENTION_YEARS = 5;
+
 /** 환불로 이어지는 App Store 알림 */
 const APPLE_REFUND_TYPES = new Set(['REFUND', 'REVOKE']);
 
@@ -35,6 +39,7 @@ export class BillingService {
     private readonly appStore: AppStoreService,
     private readonly play: GooglePlayService,
     private readonly admob: AdmobService,
+    private readonly clock: ClockService,
   ) {}
 
   /**
@@ -239,6 +244,25 @@ export class BillingService {
         `환불 처리 ${store}:${transactionId} 회수 ${recovered}/${purchase.credits}`,
       );
     });
+  }
+
+  /**
+   * 결제 기록 보관 기간(전자상거래법 5년)이 지난 기록을 지운다 (정리 작업).
+   * - iap_purchases: 탈퇴로 회원 연결이 끊긴(user_id NULL) 것 중 5년 지난 것
+   * - billing_events: 스토어 서버 알림 기록 중 5년 지난 것 (회원 연결 없음)
+   */
+  async purgeExpiredPaymentRecords(): Promise<number> {
+    const now = this.clock.now();
+    const cutoff = new Date(now);
+    cutoff.setFullYear(cutoff.getFullYear() - PAYMENT_RECORD_RETENTION_YEARS);
+    const purchases = await this.dataSource.manager.delete(IapPurchase, {
+      userId: IsNull(),
+      createdAt: LessThan(cutoff),
+    });
+    const events = await this.dataSource.manager.delete(BillingEvent, {
+      createdAt: LessThan(cutoff),
+    });
+    return (purchases.affected ?? 0) + (events.affected ?? 0);
   }
 
   /** consume이 안 된 Play 결제를 다시 consume한다 (정리 작업) */
