@@ -17,6 +17,6 @@ export interface ShelfResponse {
 }
 
 export interface FriendTapeItem extends ShelfItem {
-  /** 칸 이름 또는 "분류 안 함" */
-  groupName: string;
+  /** 칸 이름. "분류 안 함"에 있으면 null (앱이 "분류 안 함"으로 표시) */
+  groupName: string | null;
 }

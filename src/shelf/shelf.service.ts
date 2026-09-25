@@ -21,7 +21,6 @@ import {
 } from './entities/shelf-group.entity.js';
 import { keyBetween, keysBetween } from './position.js';
 
-export const UNSORTED_NAME = '분류 안 함';
 export const DEFAULT_GROUP_NAME = '새 칸';
 
 export function normalizeGroupName(raw: string | undefined): string {
@@ -114,7 +113,7 @@ export class ShelfService {
     return {
       items: opened.map((d) => ({
         ...toShelfItem(d),
-        groupName: d.group?.name ?? UNSORTED_NAME,
+        groupName: d.group?.name ?? null,
       })),
       unopenedCount: rows.length - opened.length,
     };

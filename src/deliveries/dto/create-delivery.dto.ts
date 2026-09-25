@@ -16,7 +16,8 @@ export class CreateDeliveryDto {
   @MaxLength(64)
   linkName?: string;
 
+  /** 선택. 생략하거나 null이면 태그 없음 (디자인 v2에는 태그 화면이 없다) */
   @IsOptional()
   @IsIn(TAGS)
-  tag?: Tag;
+  tag?: Tag | null;
 }

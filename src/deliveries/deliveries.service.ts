@@ -4,6 +4,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { randomBytes } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { AppException } from '../common/errors/app.exception.js';
+import { decodeCursor, encodeCursor } from '../common/utils/cursor.js';
 import { Block } from '../friends/entities/block.entity.js';
 import { Friendship } from '../friends/entities/friendship.entity.js';
 import { UNNAMED } from '../friends/friends.service.js';
@@ -43,11 +44,6 @@ export async function touchFriendship(
      ON CONFLICT (user_id, friend_id) DO UPDATE SET last_at = EXCLUDED.last_at`,
     [userId, friendId, at],
   );
-}
-
-interface SentCursor {
-  sentAt: string;
-  id: string;
 }
 
 @Injectable()
@@ -187,7 +183,7 @@ export class DeliveriesService {
     if (cursor) {
       const c = decodeCursor(cursor);
       qb.andWhere('(d.sent_at, d.id) < (:sentAt, :id)', {
-        sentAt: new Date(c.sentAt),
+        sentAt: new Date(c.at),
         id: c.id,
       });
     }
@@ -198,7 +194,7 @@ export class DeliveriesService {
       items: page.map((d) => toSentTape(d, this.baseUrl)),
       nextCursor:
         rows.length > limit && last
-          ? encodeCursor({ sentAt: last.sentAt.toISOString(), id: last.id })
+          ? encodeCursor({ at: last.sentAt.toISOString(), id: last.id })
           : null,
     };
   }
@@ -292,21 +288,4 @@ export class DeliveriesService {
   private notify(fn: () => Promise<void>): void {
     fn().catch((e: unknown) => this.logger.error(`푸시 실패: ${String(e)}`));
   }
-}
-
-function encodeCursor(c: SentCursor): string {
-  return Buffer.from(`${c.sentAt}|${c.id}`).toString('base64url');
-}
-
-function decodeCursor(raw: string): SentCursor {
-  const [sentAt, id] = Buffer.from(raw, 'base64url').toString().split('|');
-  if (
-    !sentAt ||
-    !id ||
-    Number.isNaN(Date.parse(sentAt)) ||
-    !/^[0-9a-f-]{36}$/.test(id)
-  ) {
-    throw new AppException('VALIDATION_FAILED', { fields: ['cursor'] });
-  }
-  return { sentAt, id };
 }
