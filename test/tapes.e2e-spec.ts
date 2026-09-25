@@ -144,7 +144,9 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
       const sent = await send(a, {
         recordingId: rec,
         recipientId: b.user.id,
+        tag: null,
       }).expect(201);
+      expect(sent.body.tag).toBeNull();
       const id = sent.body.id as string;
 
       const s = await shelf(b);
@@ -383,6 +385,43 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
         ids[1],
       ]);
       expect(s.unsorted.every((x: { opened: boolean }) => x.opened)).toBe(true);
+
+      // 친구 화면 "모두 재생" 순서: 칸 순서 → 칸 안 순서 → 분류 안 함(groupName null)
+      const g3 = (
+        await request(server())
+          .post('/api/shelf/groups')
+          .set(as(b))
+          .send({ name: '맨뒤칸' })
+          .expect(201)
+      ).body;
+      await request(server())
+        .patch(`/api/shelf/items/${ids[1]}`)
+        .set(as(b))
+        .send({ groupId: g3.id, afterId: null })
+        .expect(200);
+      const ft2 = await request(server())
+        .get(`/api/friends/${a.user.id}/tapes`)
+        .set(as(b))
+        .expect(200);
+      expect(
+        ft2.body.items.map((x: { id: string; groupName: string | null }) => [
+          x.id,
+          x.groupName,
+        ]),
+      ).toEqual([
+        [ids[1], '맨뒤칸'],
+        [ids[0], null],
+        [ids[2], null],
+      ]);
+      await request(server())
+        .patch(`/api/shelf/items/${ids[1]}`)
+        .set(as(b))
+        .send({ groupId: null, afterId: ids[2] })
+        .expect(200);
+      await request(server())
+        .delete(`/api/shelf/groups/${g3.id}`)
+        .set(as(b))
+        .expect(204);
 
       // 테이프 지우기 → 서랍에서 사라지고 파일도 지워진다. 보낸 사람 목록에는 남는다
       const before = storage.objects.size;

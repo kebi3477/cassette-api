@@ -23,6 +23,8 @@ export default defineConfig({
       KAKAO_APP_ID: '1234',
       REDIS_URL: process.env.TEST_REDIS_URL ?? 'redis://localhost:6379',
       BULLMQ_PREFIX: 'cassette-e2e',
+      THROTTLE_DISABLED: process.env.THROTTLE_DISABLED ?? 'true',
+      JOBS_DISABLED: 'true',
       PUBLIC_BASE_URL: 'https://cassette.test',
       APP_STORE_URL_IOS: 'https://apps.apple.com/app/id1',
       APP_STORE_URL_ANDROID: 'https://play.google.com/store/apps/details?id=app.cassette',

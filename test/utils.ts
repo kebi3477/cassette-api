@@ -8,29 +8,60 @@ import { setupApp } from '../src/app.setup.js';
 import { KakaoService } from '../src/auth/kakao.service.js';
 import { FfmpegService } from '../src/recordings/ffmpeg.service.js';
 import { StorageService } from '../src/storage/storage.service.js';
-import { FakeFfmpeg, InMemoryStorage } from './fakes.js';
+import { AppStoreService } from '../src/billing/app-store.service.js';
+import { GooglePlayService } from '../src/billing/google-play.service.js';
+import { FcmService } from '../src/notifications/fcm.service.js';
+import {
+  FakeAppStore,
+  FakeFcm,
+  FakeFfmpeg,
+  FakeGooglePlay,
+  InMemoryStorage,
+} from './fakes.js';
 import type { AuthResponse } from '../src/auth/dto/auth.response.js';
 
-export const kakaoMock = { verify: vi.fn() };
+export const kakaoMock = {
+  verify: vi.fn(),
+  unlink: vi.fn().mockResolvedValue(undefined),
+};
 
 export const storage = new InMemoryStorage();
 export const ffmpeg = new FakeFfmpeg();
+export const fcm = new FakeFcm();
+export const appStore = new FakeAppStore();
+export const googlePlay = new FakeGooglePlay();
 
-export async function createApp(): Promise<INestApplication<App>> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+export interface CreateAppOptions {
+  /** true면 메모리 저장소 대신 설정대로(STORAGE_DRIVER) 실제 드라이버를 쓴다 */
+  realStorage?: boolean;
+  /** true면 가짜 ffmpeg 대신 FfmpegService(FFMPEG_MODE)를 쓴다 */
+  realFfmpeg?: boolean;
+  port?: number;
+}
+
+export async function createApp(
+  opts: CreateAppOptions = {},
+): Promise<INestApplication<App>> {
+  let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(KakaoService)
     .useValue(kakaoMock)
-    .overrideProvider(StorageService)
-    .useValue(storage)
-    .overrideProvider(FfmpegService)
-    .useValue(ffmpeg)
-    .compile();
+    .overrideProvider(FcmService)
+    .useValue(fcm)
+    .overrideProvider(AppStoreService)
+    .useValue(appStore)
+    .overrideProvider(GooglePlayService)
+    .useValue(googlePlay);
+  if (!opts.realStorage)
+    builder = builder.overrideProvider(StorageService).useValue(storage);
+  if (!opts.realFfmpeg)
+    builder = builder.overrideProvider(FfmpegService).useValue(ffmpeg);
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<INestApplication<App>>({
     logger: ['error', 'warn'],
   });
   setupApp(app);
   // 요청마다 임시로 listen/close하지 않게 한 번 띄워 둔다 (supertest의 socket hang up 방지)
-  await app.listen(0, '127.0.0.1');
+  await app.listen(opts.port ?? 0, '127.0.0.1');
   return app;
 }
 
