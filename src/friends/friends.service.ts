@@ -159,14 +159,25 @@ export class FriendsService {
   }
 
   private friendQuery(userId: string) {
-    return this.friendships
-      .createQueryBuilder('f')
-      .innerJoin(User, 'u', 'u.id = f.friend_id')
-      .select('f.friend_id', 'user_id')
-      .addSelect('u.name', 'name')
-      .addSelect('f.starred', 'starred')
-      .addSelect('f.last_at', 'last_at')
-      .where('f.user_id = :userId', { userId });
+    return (
+      this.friendships
+        .createQueryBuilder('f')
+        .innerJoin(User, 'u', 'u.id = f.friend_id')
+        .select('f.friend_id', 'user_id')
+        .addSelect('u.name', 'name')
+        .addSelect('f.starred', 'starred')
+        .addSelect('f.last_at', 'last_at')
+        .where('f.user_id = :userId', { userId })
+        // 차단한 사람은 친구 목록에 나오지 않는다 (차단할 때 줄을 지우지만, 한 번 더 막는다)
+        .andWhere(
+          'NOT EXISTS (SELECT 1 FROM blocks b WHERE b.user_id = f.user_id AND b.blocked_id = f.friend_id)',
+        )
+    );
+  }
+
+  /** 친구 수 (차단한 사람 제외) */
+  count(userId: string): Promise<number> {
+    return this.friendQuery(userId).getCount();
   }
 }
 

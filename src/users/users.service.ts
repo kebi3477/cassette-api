@@ -3,7 +3,10 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { AuthIdentity } from '../auth/entities/auth-identity.entity.js';
 import { AppException } from '../common/errors/app.exception.js';
-import { Friendship } from '../friends/entities/friendship.entity.js';
+import { Delivery } from '../deliveries/entities/delivery.entity.js';
+import { FriendsService } from '../friends/friends.service.js';
+import { Recording } from '../recordings/entities/recording.entity.js';
+import { ShelfService } from '../shelf/shelf.service.js';
 import { MeResponse } from './dto/me.response.js';
 import { UpdateMeDto } from './dto/update-me.dto.js';
 import { TapeInventory } from './entities/tape-inventory.entity.js';
@@ -32,31 +35,42 @@ export class UsersService {
     private readonly tapes: Repository<TapeInventory>,
     @InjectRepository(AuthIdentity)
     private readonly identities: Repository<AuthIdentity>,
-    @InjectRepository(Friendship)
-    private readonly friendships: Repository<Friendship>,
+    @InjectRepository(Delivery)
+    private readonly deliveries: Repository<Delivery>,
+    private readonly friends: FriendsService,
+    private readonly shelf: ShelfService,
   ) {}
 
   async getMe(userId: string): Promise<MeResponse> {
     const user = await this.users.findOneBy({ id: userId });
     if (!user) throw new AppException('USER_NOT_FOUND');
 
-    const [stock, identities, friendCount] = await Promise.all([
-      this.tapes.findBy({ userId }),
-      this.identities.find({ where: { userId }, order: { createdAt: 'ASC' } }),
-      this.friendships.countBy({ userId }),
-    ]);
+    const [stock, identities, friendCount, drawer, sentCount] =
+      await Promise.all([
+        this.tapes.findBy({ userId }),
+        this.identities.find({
+          where: { userId },
+          order: { createdAt: 'ASC' },
+        }),
+        this.friends.count(userId),
+        this.shelf.counts(userId),
+        this.deliveries.countBy({ senderId: userId }),
+      ]);
     const qty = (t: 3 | 5) => stock.find((s) => s.tapeType === t)?.qty ?? 0;
-
-    // TODO(2단계): deliveries가 생기면 보관량·받은·보낸 수를 채운다
-    const stored = 0;
-    const receivedCount = 0;
-    const sentCount = 0;
+    const { stored, unopened } = drawer;
+    // 받은 테이프 수 = 지금 서랍에 있는 테이프 수 (디자인과 같음)
+    const receivedCount = stored;
 
     return {
       id: user.id,
       name: user.name,
       credits: user.credits,
-      drawer: { stored, cap: user.drawerCap, full: stored >= user.drawerCap },
+      drawer: {
+        stored,
+        cap: user.drawerCap,
+        full: stored >= user.drawerCap,
+        unopenedCount: unopened,
+      },
       tapes: [
         { tapeType: 1, qty: null },
         { tapeType: 3, qty: qty(3) },
@@ -83,14 +97,35 @@ export class UsersService {
   }
 
   /**
-   * 회원 탈퇴. users 줄을 지우면 FK(ON DELETE CASCADE)로
-   * 로그인 계정, refresh token, 친구·차단(양방향), 크레딧 원장, 보유 테이프, 멱등 키가 함께 지워진다.
-   * 정책은 docs/api.md "회원 탈퇴" 참고.
+   * 회원 탈퇴 (docs/api.md "회원 탈퇴 데이터 정책").
+   * - 받은 테이프, 아직 아무도 안 받은 내 링크 테이프, 보내지 않은 녹음: 파일과 함께 삭제
+   * - 받은 사람이 있는 보낸 테이프: 받은 사람 서랍에 남는다 (sender_id·owner_id는 FK로 NULL)
+   * - 나머지(로그인 계정, 토큰, 친구·차단 양방향, 원장, 보유 테이프, 칸, 멱등 키)는 FK CASCADE
    */
   async withdraw(userId: string): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
-      const result = await manager.delete(User, { id: userId });
+    const purged = await this.dataSource.transaction(async (m) => {
+      const recordings: Pick<Recording, 'id' | 'rawKey' | 'processedKey'>[] =
+        await m
+          .createQueryBuilder(Recording, 'r')
+          .select(['r.id', 'r.rawKey', 'r.processedKey'])
+          .leftJoin(Delivery, 'd', 'd.recording_id = r.id')
+          .where('d.recipient_id = :userId', { userId })
+          .orWhere('d.sender_id = :userId AND d.recipient_id IS NULL', {
+            userId,
+          })
+          .orWhere('r.owner_id = :userId AND d.id IS NULL', { userId })
+          .getMany();
+      if (recordings.length > 0) {
+        // deliveries는 recording FK(ON DELETE CASCADE)로 함께 지워진다
+        await m.delete(
+          Recording,
+          recordings.map((r) => r.id),
+        );
+      }
+      const result = await m.delete(User, { id: userId });
       if (!result.affected) throw new AppException('USER_NOT_FOUND');
+      return recordings;
     });
+    await this.shelf.purgeFiles(purged);
   }
 }

@@ -18,6 +18,8 @@ export interface MeResponse {
     cap: number;
     /** stored >= cap. 꽉 참 배너 */
     full: boolean;
+    /** 분류 안 함에 있는 안 뜯은 소포 수 (탭바 서랍 레드 점) */
+    unopenedCount: number;
   };
   tapes: TapeStock[];
   stats: {

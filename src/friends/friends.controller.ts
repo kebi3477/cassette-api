@@ -21,12 +21,17 @@ import {
 } from './dto/friend.response.js';
 import { UpdateFriendDto } from './dto/update-friend.dto.js';
 import { FriendsService } from './friends.service.js';
+import type { FriendTapeItem } from '../shelf/dto/shelf.response.js';
+import { ShelfService } from '../shelf/shelf.service.js';
 
 const uuid = new ParseUUIDPipe();
 
 @Controller('friends')
 export class FriendsController {
-  constructor(private readonly friendsService: FriendsService) {}
+  constructor(
+    private readonly friendsService: FriendsService,
+    private readonly shelfService: ShelfService,
+  ) {}
 
   @Get()
   list(@CurrentUser() user: AuthUser): Promise<ListResponse<FriendResponse>> {
@@ -39,6 +44,23 @@ export class FriendsController {
     @CurrentUser() user: AuthUser,
   ): Promise<ListResponse<BlockedUserResponse>> {
     return this.friendsService.listBlocked(user.id);
+  }
+
+  /** 친구 화면: 그 친구가 보낸 테이프(뜯은 것)와 안 뜯은 수 */
+  @Get(':userId/tapes')
+  async tapes(
+    @CurrentUser() user: AuthUser,
+    @Param('userId', uuid) friendId: string,
+  ): Promise<{
+    friend: FriendResponse;
+    items: FriendTapeItem[];
+    unopenedCount: number;
+  }> {
+    const friend = await this.friendsService.get(user.id, friendId);
+    return {
+      friend,
+      ...(await this.shelfService.tapesFrom(user.id, friendId)),
+    };
   }
 
   /** 즐겨찾기 켜기/끄기 */
