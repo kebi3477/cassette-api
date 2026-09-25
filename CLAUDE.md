@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Cassette API. 목소리 테이프를 녹음해 친구에게 보내는 앱(`../cassette-app`, Flutter)의 백엔드.
 
 - NestJS 12, ESM(`"type": "module"`), 테스트는 vitest, 린트는 oxlint
-- Postgres(TypeORM, **마이그레이션으로 관리**, `synchronize` 사용 금지), Redis + BullMQ, MinIO(S3 호환)
+- Postgres(TypeORM, **마이그레이션으로 관리**, `synchronize` 사용 금지), Redis + BullMQ, S3 호환 저장소(운영: SeaweedFS)
 - 미니PC에서 docker compose로 운영하고, Cloudflare Tunnel로 외부에 공개한다
 - 두 저장소에 공통으로 적용되는 아키텍처 결정(스키마, 흐름, 미결정 사항)은 `../ARCHITECTURE.md`에 있다 (저장소 바깥 파일)
 - 클라이언트는 Flutter 앱 하나다. 응답 스펙은 앱 도메인 모델과 맞춘다
@@ -67,11 +67,11 @@ npm run migration:revert
 
 - 엔티티를 추가하면 `src/config/entities.ts`에, 마이그레이션을 만들면 `src/migrations/index.ts`에 넣는다 (glob 로딩을 쓰지 않는다. vitest와 dist 양쪽에서 같은 목록을 쓰기 위해)
 - 로컬 개발은 Homebrew Postgres(`cassette_dev`)와 Redis를 쓴다. `.env.example`을 `.env`로 복사해 채운다
-- 로컬에는 MinIO·ffmpeg를 설치하지 않는다. 개발 기본값은 `STORAGE_DRIVER=local`(파일은 `.data/storage`, 업로드·재생은 `/api/dev-storage/*` HMAC 서명 URL)과 `FFMPEG_MODE=passthrough`(원본 그대로, 길이는 앱이 알린 값)다. 운영에서는 둘 다 env 검증이 막는다. 실제 테이프 소리를 들으려면 `brew install ffmpeg` 후 `FFMPEG_MODE=real`
+- 로컬에는 S3 저장소·ffmpeg를 설치하지 않는다. 개발 기본값은 `STORAGE_DRIVER=local`(파일은 `.data/storage`, 업로드·재생은 `/api/dev-storage/*` HMAC 서명 URL)과 `FFMPEG_MODE=passthrough`(원본 그대로, 길이는 앱이 알린 값)다. 운영에서는 둘 다 env 검증이 막는다. 실제 테이프 소리를 들으려면 `brew install ffmpeg` 후 `FFMPEG_MODE=real`
 - 앱을 붙여 볼 때: `npm run start:dev` → `POST /api/auth/dev {"key","name"}` → `POST /api/dev/seed`(프로토타입 초기 데이터) → 크레딧은 `POST /api/dev/credits`. 실기기면 `PUBLIC_BASE_URL`을 맥의 IP로. 자세한 것은 `docs/api.md` 0장
 - e2e는 `cassette_test` DB를 쓴다. 시작할 때 스키마를 지우고 마이그레이션을 처음부터 적용한다 (`test/global-setup.ts`)
 - e2e는 로컬 Redis를 실제로 쓰고(BullMQ 접두어 `cassette-e2e`), 저장소와 ffmpeg는 `test/fakes.ts`의 메모리 저장소·가짜 ffmpeg로 바꾼다. 실제 ffmpeg 테스트는 ffmpeg가 있을 때만 돈다
-- 녹음 파일은 `StorageService`(S3 호환, MinIO/R2)로만 다룬다. 변환 워커는 `recordings.processor.ts`이고 API 프로세스 안에서 돈다
+- 녹음 파일은 `StorageService`(S3 호환, SeaweedFS/R2)로만 다룬다. 변환 워커는 `recordings.processor.ts`이고 API 프로세스 안에서 돈다
 - 개발 전용 API(`POST /api/auth/dev`, `/api/dev/*`, `/api/dev-storage/*`)는 `DevOnlyGuard`로 운영에서 404가 된다
 - 외부 서비스(카카오, Apple, App Store, Google Play, AdMob 키, FCM)는 서비스 클래스로 감싸고 e2e에서는 `test/fakes.ts`의 가짜로 바꾼다. 키가 없으면 결제 확인은 503, 푸시는 로그만, 탈퇴 연결 해제는 건너뛴다
 - 정리 작업(`jobs/`, 매시간): 24시간 지난 멱등 키, 1시간 넘게 uploading인 녹음, consume 못 한 Play 결제, 재가입 제한 기간이 지난 탈퇴 계정 해시. 공개 엔드포인트는 `PublicThrottlerGuard`로 요청 횟수를 제한한다(e2e는 `THROTTLE_DISABLED=true`)
@@ -82,8 +82,8 @@ npm run migration:revert
 docker compose --env-file .env.production up -d --build   # 컨테이너 시작 시 마이그레이션 적용
 ```
 
-- 운영 compose: postgres, redis, minio, api, cloudflared(Cloudflare Tunnel), pg-backup(매일 pg_dump), offsite-backup(rclone으로 R2/B2 복제). 백업 스크립트는 `ops/backup/`
-- 운영 필수 비밀값: `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`(32바이트 base64, Apple 토큰 암호화), `IDENTITY_HASH_KEY`(32바이트 base64, 탈퇴 계정 해시), `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `TUNNEL_TOKEN`
+- 운영 compose: postgres, redis, s3(SeaweedFS), api, 입구(edge: 기존 리버스 프록시 뒤 / tunnel: Cloudflare), pg-backup(매일 pg_dump), offsite-backup(rclone으로 R2/B2 복제). 백업 스크립트는 `ops/backup/`
+- 운영 필수 비밀값: `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`(32바이트 base64, Apple 토큰 암호화), `IDENTITY_HASH_KEY`(32바이트 base64, 탈퇴 계정 해시), `POSTGRES_PASSWORD`, `S3_ROOT_PASSWORD`, `TUNNEL_TOKEN`
 
 npm 10.9에는 이 템플릿의 peer 의존성을 풀다가 죽는 버그(`Cannot read properties of null (reading 'edgesOut')`)가 있다. 의존성을 새로 설치할 때는 `npx npm@11 install`을 쓴다.
 

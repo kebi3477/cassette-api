@@ -20,7 +20,7 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 
 ## 0. 로컬 개발 서버에 붙기
 
-MinIO·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → 변환 → 보내기 → 재생, 상점, 크레딧)을 돌릴 수 있다.
+S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → 변환 → 보내기 → 재생, 상점, 크레딧)을 돌릴 수 있다.
 
 1. 서버 실행 (`cassette-api`에서)
    ```bash
@@ -33,7 +33,7 @@ MinIO·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → 변환 �
 2. 저장소·변환 모드 (개발 기본값)
    | 환경 변수 | 개발 | 운영 |
    |---|---|---|
-   | `STORAGE_DRIVER` | `local`: 파일을 `.data/storage`에 두고, 업로드·재생은 API의 서명 URL(`PUT/GET /api/dev-storage/{key}?op=&exp=&ct=&sig=`) | `s3` (MinIO / R2 presigned URL). 운영에서 `local`이면 서버가 시작하지 않는다 |
+   | `STORAGE_DRIVER` | `local`: 파일을 `.data/storage`에 두고, 업로드·재생은 API의 서명 URL(`PUT/GET /api/dev-storage/{key}?op=&exp=&ct=&sig=`) | `s3` (SeaweedFS / R2 presigned URL). 운영에서 `local`이면 서버가 시작하지 않는다 |
    | `FFMPEG_MODE` | `passthrough`: 원본을 그대로 결과로 쓰고, 길이는 앱이 알린 `durationMs` | `real` (강제) |
    - 앱 코드는 드라이버와 상관없이 같다: `upload.url` + `upload.headers`로 PUT, `preview.url` / 재생 `url`로 GET. 서명 URL은 Range 요청도 된다.
    - 실제 테이프 소리를 들으려면 `brew install ffmpeg` 후 `FFMPEG_MODE=real`.
@@ -504,7 +504,7 @@ MinIO·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → 변환 �
 
 ## 9. recordings
 
-녹음 파일은 앱이 저장소(MinIO / R2)에 **직접** 올린다(presigned PUT). 형식은 AAC(m4a) 64kbps 권장, 최대 6MB.
+녹음 파일은 앱이 저장소(SeaweedFS / R2)에 **직접** 올린다(presigned PUT). 형식은 AAC(m4a) 64kbps 권장, 최대 6MB.
 변환 워커(BullMQ)가 ffmpeg로 "테이프 소리"(대역 제한 · 히스 노이즈 · 약한 wow/flutter · 새추레이션)를 입히고, **ffprobe로 잰 실제 길이로 `durationMs`를 바꾼다.**
 
 ### Recording

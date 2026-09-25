@@ -4,7 +4,7 @@ services:
   # Cloudflare Tunnel (토큰 방식). 공개 호스트 이름 → 서비스 연결은 Cloudflare 대시보드에서 정한다 (docs/deploy.md)
   #   api.<도메인>   → http://api:3000
   #   <도메인>       → http://api:3000   (PUBLIC_BASE_URL: 링크 페이지 /t/*, /.well-known/*)
-  #   files.<도메인> → http://minio:9000 (S3_PUBLIC_ENDPOINT)
+  #   files.<도메인> → http://s3:9000 (S3_PUBLIC_ENDPOINT)
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
@@ -19,7 +19,7 @@ services:
     depends_on:
       api:
         condition: service_healthy
-      minio:
+      s3:
         condition: service_healthy
     # 이미지에 셸이 없어 컨테이너 안 healthcheck를 쓸 수 없다. 연결 상태는 대시보드와 메트릭(:2000/ready)으로 본다
     healthcheck:
