@@ -771,6 +771,13 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 ```json
 { "store": "app_store", "productId": "credits_100", "verificationData": "JWS 또는 purchaseToken" }
 ```
+| 필드 | 필수 | 값 |
+|---|---|---|
+| `store` | O | **`app_store`**(iOS) 또는 **`play`**(Android) 둘 중 하나. 다른 값(`google_play` 등)이면 `400 VALIDATION_FAILED` (`fields: ["store"]`) |
+| `productId` | O | `credits_100` · `credits_550` · `credits_1200`. 모르는 값이면 `404 PRODUCT_NOT_FOUND` |
+| `verificationData` | O | iOS: `jwsRepresentation` · Android: `purchaseToken` |
+| `transactionId` | | 참고용 |
+
 - iOS: StoreKit 2 `jwsRepresentation`. 서버가 Apple 인증서 체인으로 서명·번들 ID·환경을 확인한다(샌드박스 결제도 받는다. 앱 심사용)
 - Android: `purchaseToken`. 서버가 Google Play Developer API(`purchases.products.get`)로 확인하고, 지급 후 **서버가 consume**한다(앱은 consume하지 않는다)
 - `transactionId`(선택)는 참고용이다. 서버는 스토어에서 확인한 거래 id를 쓴다
@@ -923,5 +930,6 @@ FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`
 | 날짜 | 내용 |
 |---|---|
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |
+| 2026-09-25 | `POST /billing/iap`의 `store` 값(`app_store` · `play`)과 잘못된 값의 오류(`VALIDATION_FAILED`)를 명시 |
 | 2026-09-25 | 3단계: wallet(잔액·내역·선물), shop(상품·구매), billing(App Store·Google Play 결제 확인, AdMob SSV, 환불 알림), notifications(FCM 기기 등록·푸시) 구현. 로컬 개발 섹션(0장), `STORAGE_DRIVER=local`·`FFMPEG_MODE=passthrough`, `POST /dev/seed`·`POST /dev/credits`·`/dev-storage/*` 추가. 공개 엔드포인트 요청 횟수 제한. 탈퇴 시 카카오 연결 끊기·Apple 토큰 철회(`POST /auth/apple`에 `authorizationCode` 추가). 오류 코드 `GIFT_NOT_ALLOWED`·`RECEIPT_ALREADY_USED`·`IAP_UNAVAILABLE`·`BILLING_NOTIFICATIONS_UNAVAILABLE`·`INVALID_SIGNATURE` 추가. 앱 요청: 친구 테이프 `items` 순서 명시, 분류 안 함은 `groupName: null`, `POST /deliveries`의 `tag` 선택(null 허용) |
 | 2026-09-25 | 2단계: recordings, deliveries, shelf, share(+웹 페이지 `/t/{token}`, `.well-known`), 친구 테이프 구현. `Me.drawer.unopenedCount`·`GET /shelf`의 `unopenedCount` 추가(앱 요청). 변환 후 실제 길이로 `durationMs` 갱신 명시(앱 요청). `GET /friends`는 차단한 사람 제외 명시(앱 요청). `GET /share/{token}`에 `state`·`deliveryId`, 오류 코드 `TAPE_NOT_OPENED`·`UPLOAD_NOT_FOUND`·`RECORDING_TOO_LARGE` 추가. `PATCH /shelf/items`의 `groupId`·`afterId` 필수 |
