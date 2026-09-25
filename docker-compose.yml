@@ -1,8 +1,10 @@
 # 미니PC 운영용. 자세한 설치·배포·백업·복원은 docs/deploy.md
 # 사용: cp .env.example .env.production && (값 채우기)
 #       docker compose --env-file .env.production up -d --build
-# .env.production 하나에 compose 변수(POSTGRES_*, MINIO_*, TUNNEL_TOKEN, OFFSITE_*)와 앱 변수를 함께 둔다.
-# 외부 공개는 cloudflared(Cloudflare Tunnel)만 한다. 호스트의 포트는 127.0.0.1에만 묶는다.
+# .env.production 하나에 compose 변수(POSTGRES_*, MINIO_*, OFFSITE_* 등)와 앱 변수를 함께 둔다.
+# 호스트의 포트는 127.0.0.1에만 묶는다. 외부 공개는 둘 중 하나를 덧붙여 쓴다:
+#   - docker-compose.edge.yml   이미 443을 쓰는 리버스 프록시 뒤 (미니PC: myhandball Caddy)
+#   - docker-compose.tunnel.yml Cloudflare Tunnel (도메인이 Cloudflare에 있을 때)
 name: cassette
 
 # 모든 서비스 공통: 로그 파일 크기 제한 (10MB × 5개)
@@ -53,7 +55,11 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD를 정해 주세요}
     volumes:
       - minio-data:/data
-    # 9000(S3 API)은 cloudflared가 files.<도메인>으로 공개한다. 콘솔(9001)은 미니PC 안에서만
+    networks:
+      default:
+        aliases:
+          - cassette-minio
+    # 9000(S3 API)은 입구(edge 또는 cloudflared)가 공개한다. 콘솔(9001)은 미니PC 안에서만
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
@@ -77,7 +83,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-cassette}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cassette}
       REDIS_URL: redis://redis:6379
       # 녹음 파일. 앱은 presigned URL로 MinIO에 직접 올리고 받는다.
-      # S3_PUBLIC_ENDPOINT는 cloudflared로 minio:9000을 공개한 주소 (예: https://files.<도메인>)
+      # S3_PUBLIC_ENDPOINT는 minio:9000을 공개한 주소 (edge: https://<도메인>, 버킷 경로로 구분 · tunnel: https://files.<도메인>)
       STORAGE_DRIVER: s3
       FFMPEG_MODE: real
       S3_ENDPOINT: http://minio:9000
@@ -94,34 +100,18 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - cassette-api
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${API_HOST_PORT:-3000}:3000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 30s
       timeout: 3s
       retries: 3
       start_period: 30s
-
-  # Cloudflare Tunnel (토큰 방식). 공개 호스트 이름 → 서비스 연결은 Cloudflare 대시보드에서 정한다 (docs/deploy.md)
-  #   api.<도메인>   → http://api:3000
-  #   <도메인>       → http://api:3000   (PUBLIC_BASE_URL: 링크 페이지 /t/*, /.well-known/*)
-  #   files.<도메인> → http://minio:9000 (S3_PUBLIC_ENDPOINT)
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    restart: unless-stopped
-    logging: *logging
-    command: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run"]
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?TUNNEL_TOKEN을 정해 주세요 (Cloudflare Zero Trust > Tunnels)}
-    depends_on:
-      api:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    # 이미지에 셸이 없어 컨테이너 안 healthcheck를 쓸 수 없다. 연결 상태는 대시보드와 메트릭(:2000/ready)으로 본다
-    healthcheck:
-      disable: true
 
   # 매일 Postgres 백업 (pg_dump -Fc, 최근 BACKUP_KEEP개 보관)
   pg-backup:

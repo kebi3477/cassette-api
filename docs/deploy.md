@@ -1,6 +1,25 @@
 # Cassette API 운영 가이드 (미니PC)
 
-미니PC 한 대에서 `docker compose`로 전부 돌리고, 외부 공개는 Cloudflare Tunnel로만 한다. 공유기 포트 포워딩과 고정 IP는 필요 없다.
+미니PC 한 대에서 `docker compose`로 전부 돌린다. 외부 공개는 두 방식 중 하나를 `.env.production`의 `COMPOSE_FILE`로 고른다.
+
+| 방식 | 파일 | 언제 |
+|---|---|---|
+| **edge** (지금 미니PC) | `docker-compose.edge.yml` | 이미 443을 쓰는 리버스 프록시가 있을 때. 미니PC에서는 myhandball Caddy가 `cassette.lab241.com`을 `cassette-edge:80`으로 넘긴다 (0장) |
+| tunnel | `docker-compose.tunnel.yml` | 도메인이 Cloudflare에 있고 포트를 열 수 없을 때 (2장) |
+
+## 0. 지금 미니PC 구성 (edge, cassette.lab241.com)
+
+```
+인터넷 ─443─▶ 공유기 ─▶ myhandball-caddy (HTTPS, 인증서 자동)
+                         └ cassette.lab241.com ─▶ cassette-edge:80 ─┬─ /cassette/* ─▶ minio:9000 (녹음 파일, presigned URL)
+                                                                     └─ 그 밖 ───────▶ api:3000 (/api, /t, /.well-known, /static)
+```
+
+- 도메인 하나로 전부 받는다: `PUBLIC_BASE_URL=https://cassette.lab241.com`, `S3_PUBLIC_ENDPOINT=https://cassette.lab241.com`(버킷 경로 `/cassette/*`로 MinIO에 간다).
+- DNS: 가비아 `lab241.com`에 `cassette` A 레코드 → 미니PC 공인 IP. 인증서는 myhandball Caddy가 발급·갱신한다.
+- myhandball `deploy/Caddyfile`에 `cassette.lab241.com { reverse_proxy cassette-edge:80 }` 블록이 있고, `cassette-edge` 컨테이너만 `myhandball_default` 네트워크에 들어간다. api·minio를 그 네트워크에 넣지 않는 이유는 서비스 이름(`api`, `postgres`)이 myhandball과 겹쳐 엉뚱한 컨테이너로 가기 때문이다.
+- 실제 사용자 IP: 바깥 Caddy가 `X-Forwarded-For`를 만들고, `cassette-edge`는 그 값을 바꾸지 않고 넘긴다(API는 `trust proxy 1`).
+- 공유기는 집 안에서 공인 IP로 되돌아오는 접속을 지원하지 않아서, 같은 공유기 안의 기기는 `cassette.lab241.com`에 닿지 않는다. 집 안 테스트는 LTE로 하거나 맥의 로컬 서버를 쓴다.
 
 ```
 인터넷 ──▶ Cloudflare ──(Tunnel)──▶ cloudflared ─┬─▶ api:3000   (api.<도메인>, <도메인>)

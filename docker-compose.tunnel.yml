@@ -1,0 +1,26 @@
+# Cloudflare Tunnel로 공개할 때 덧붙인다 (도메인이 Cloudflare에 있어야 한다). docs/deploy.md
+# 사용: docker compose -f docker-compose.yml -f docker-compose.tunnel.yml --env-file .env.production up -d --build
+services:
+  # Cloudflare Tunnel (토큰 방식). 공개 호스트 이름 → 서비스 연결은 Cloudflare 대시보드에서 정한다 (docs/deploy.md)
+  #   api.<도메인>   → http://api:3000
+  #   <도메인>       → http://api:3000   (PUBLIC_BASE_URL: 링크 페이지 /t/*, /.well-known/*)
+  #   files.<도메인> → http://minio:9000 (S3_PUBLIC_ENDPOINT)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    command: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run"]
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?TUNNEL_TOKEN을 정해 주세요 (Cloudflare Zero Trust > Tunnels)}
+    depends_on:
+      api:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    # 이미지에 셸이 없어 컨테이너 안 healthcheck를 쓸 수 없다. 연결 상태는 대시보드와 메트릭(:2000/ready)으로 본다
+    healthcheck:
+      disable: true
