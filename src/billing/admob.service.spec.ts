@@ -40,4 +40,21 @@ describe('AdmobService.verify', () => {
       service.verify(q.replace('user_id=u1', 'user_id=u2')),
     ).rejects.toMatchObject({ code: 'INVALID_SIGNATURE' });
   });
+
+  it('서명에 base64url이 아닌 글자를 붙이면 거절한다', async () => {
+    const q = query('transaction_id=t9&user_id=u9');
+    await expect(service.verify(q)).resolves.toMatchObject({
+      transactionId: 't9',
+    });
+    await expect(
+      service.verify(q.replace('&key_id=7', '!&key_id=7')),
+    ).rejects.toMatchObject({
+      code: 'INVALID_SIGNATURE',
+    });
+    await expect(
+      service.verify(q.replace(/signature=[^&]+/, 'signature=')),
+    ).rejects.toMatchObject({
+      code: 'INVALID_SIGNATURE',
+    });
+  });
 });

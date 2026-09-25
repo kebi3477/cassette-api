@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { verify } from 'node:crypto';
 import { AppException } from '../common/errors/app.exception.js';
+import { decodeBase64UrlStrict } from '../common/utils/strict-encoding.js';
 
 export const ADMOB_KEYS_URL =
   'https://www.gstatic.com/admob/reward/verifier-keys.json';
@@ -48,12 +49,12 @@ export class AdmobService {
     if (!pem) pem = (await this.keys(true)).get(keyId); // 키가 바뀌었을 수 있다
     if (!pem) throw new AppException('INVALID_SIGNATURE');
 
-    const ok = verify(
-      'sha256',
-      Buffer.from(message),
-      pem,
-      Buffer.from(signature, 'base64url'),
-    );
+    // web-safe base64만 받는다 (잘못된 글자를 버리고 해석하지 않게)
+    const signatureBytes = decodeBase64UrlStrict(signature);
+    if (!signatureBytes || signatureBytes.length === 0) {
+      throw new AppException('INVALID_SIGNATURE');
+    }
+    const ok = verify('sha256', Buffer.from(message), pem, signatureBytes);
     if (!ok) throw new AppException('INVALID_SIGNATURE');
 
     const transactionId = params.get('transaction_id');

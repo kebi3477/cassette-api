@@ -48,4 +48,25 @@ describe('LocalStorageService', () => {
       'recordings/u/r/tape.m4a',
     );
   });
+
+  it('서명 변조는 모두 거절한다: 끝에 글자 추가, 홀수 길이, 대문자, 빈 문자열', async () => {
+    const put = await service.presignPut('recordings/u/r/raw', 'audio/mp4', 60);
+    const p = parse(put.url);
+    const sig = p.sig!;
+    expect(service.verify('put', p.key, p.exp, p.ct, sig)).toBe(
+      'recordings/u/r/raw',
+    );
+    for (const bad of [
+      `${sig}x`,
+      `${sig}0`,
+      sig.slice(0, -1),
+      sig.toUpperCase(),
+      '',
+      `${sig.slice(0, -2)}zz`,
+    ]) {
+      expect(service.verify('put', p.key, p.exp, p.ct, bad)).toBeNull();
+    }
+    // 키 부분에 잘못된 글자를 붙여도 거절
+    expect(service.verify('put', `${p.key}!`, p.exp, p.ct, sig)).toBeNull();
+  });
 });

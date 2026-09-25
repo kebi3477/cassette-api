@@ -1,6 +1,10 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import {
+  decodeBase64UrlStrict,
+  decodeHexStrict,
+} from '../common/utils/strict-encoding.js';
 import { createWriteStream } from 'node:fs';
 import {
   copyFile,
@@ -152,18 +156,19 @@ export class LocalStorageService extends StorageService {
   ): string | null {
     if (!exp || !sig || !/^\d+$/.test(exp)) return null;
     if (Number(exp) * 1000 < Date.now()) return null;
-    let key: string;
+    // 서명은 정확히 32바이트 소문자 16진(64자)이어야 한다.
+    // Buffer.from(…, 'hex')는 잘못된 글자를 조용히 버려서, 끝에 글자를 붙여도 통과하던 문제가 있었다
+    const given = decodeHexStrict(sig, 32);
+    const keyBytes = decodeBase64UrlStrict(encodedKey);
+    if (!given || !keyBytes) return null;
+    const key = keyBytes.toString('utf8');
     try {
-      key = Buffer.from(encodedKey, 'base64url').toString('utf8');
       this.pathOf(key);
     } catch {
       return null;
     }
     const expected = Buffer.from(this.sign(op, key, exp, ct ?? ''), 'hex');
-    const given = Buffer.from(sig, 'hex');
-    if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
-      return null;
-    }
+    if (!timingSafeEqual(given, expected)) return null;
     return key;
   }
 

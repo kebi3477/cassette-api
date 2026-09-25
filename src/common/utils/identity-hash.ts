@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { decodeBase64Strict } from './strict-encoding.js';
 
 /**
  * 탈퇴한 소셜 계정 식별자 해시. (provider, provider_sub)를 원문으로 남기지 않고
@@ -9,7 +10,7 @@ export function hashIdentity(
   provider: string,
   sub: string,
 ): string {
-  return createHmac('sha256', Buffer.from(keyBase64, 'base64'))
-    .update(`${provider}\n${sub}`)
-    .digest('hex');
+  const key = decodeBase64Strict(keyBase64);
+  if (!key) throw new Error('IDENTITY_HASH_KEY는 base64여야 합니다');
+  return createHmac('sha256', key).update(`${provider}\n${sub}`).digest('hex');
 }

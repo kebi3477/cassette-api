@@ -69,6 +69,30 @@ describe('로컬 저장소 드라이버 + passthrough (실제 HTTP): 업로드 �
       /sig=[0-9a-f]+/,
       'sig=' + '0'.repeat(64),
     );
+    // 서명 끝에 글자를 붙이거나 대문자·홀수 길이·빈 값으로 바꿔도 거절
+    // (Buffer.from(…, 'hex')가 잘못된 글자를 버리던 문제의 회귀 테스트)
+    for (const bad of [
+      upload.url.replace(/(sig=[0-9a-f]+)/, '$1x'),
+      upload.url.replace(
+        /sig=([0-9a-f]+)/,
+        (_m, g: string) => `sig=${g.toUpperCase()}`,
+      ),
+      upload.url.replace(
+        /sig=([0-9a-f]+)/,
+        (_m, g: string) => `sig=${g.slice(0, -1)}`,
+      ),
+      upload.url.replace(/sig=[0-9a-f]+/, 'sig='),
+    ]) {
+      const r = await fetch(bad, {
+        method: 'PUT',
+        headers: upload.headers,
+        body: audio,
+      });
+      expect(r.status).toBe(403);
+      expect(((await r.json()) as { code: string }).code).toBe(
+        'INVALID_SIGNATURE',
+      );
+    }
     expect(
       (
         await fetch(tampered, {

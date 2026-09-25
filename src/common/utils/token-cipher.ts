@@ -1,10 +1,14 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import {
+  decodeBase64Strict,
+  decodeBase64UrlStrict,
+} from './strict-encoding.js';
 
 /** 32바이트 키를 base64 문자열에서 읽는다. 길이가 다르면 null */
 export function parseEncryptionKey(base64: string | undefined): Buffer | null {
   if (!base64) return null;
-  const key = Buffer.from(base64, 'base64');
-  return key.length === 32 ? key : null;
+  const key = decodeBase64Strict(base64);
+  return key && key.length === 32 ? key : null;
 }
 
 /**
@@ -28,10 +32,14 @@ export class TokenCipher {
 
   decrypt(token: string): string | null {
     try {
-      const [iv, tag, data] = token
-        .split('.')
-        .map((p) => Buffer.from(p, 'base64url'));
-      const decipher = createDecipheriv('aes-256-gcm', this.key, iv);
+      const parts = token.split('.').map((p) => decodeBase64UrlStrict(p));
+      if (parts.length !== 3 || parts.some((p) => !p)) return null;
+      const [iv, tag, data] = parts as Buffer[];
+      // 잘린 인증 태그를 받아들이지 않게 길이를 고정한다
+      if (iv.length !== 12 || tag.length !== 16) return null;
+      const decipher = createDecipheriv('aes-256-gcm', this.key, iv, {
+        authTagLength: 16,
+      });
       decipher.setAuthTag(tag);
       return Buffer.concat([decipher.update(data), decipher.final()]).toString(
         'utf8',

@@ -16,6 +16,8 @@ import {
   validateSync,
 } from 'class-validator';
 
+import { decodeBase64Strict } from '../common/utils/strict-encoding.js';
+
 const SEMVER = /^\d+\.\d+\.\d+$/;
 
 /** 개발 전용 기본 토큰 암호화 키 (운영에서는 거절) */
@@ -34,7 +36,7 @@ export const DEV_IDENTITY_HASH_KEY = Buffer.alloc(
 class IsBase64Key32 implements ValidatorConstraintInterface {
   validate(value: unknown): boolean {
     return (
-      typeof value === 'string' && Buffer.from(value, 'base64').length === 32
+      typeof value === 'string' && decodeBase64Strict(value)?.length === 32
     );
   }
 

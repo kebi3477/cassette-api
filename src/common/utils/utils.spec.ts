@@ -63,4 +63,13 @@ describe('공통 유틸', () => {
       hashIdentity(Buffer.alloc(32, 4).toString('base64'), 'kakao', '12345'),
     );
   });
+
+  it('TokenCipher: 잘린 태그·잘못된 글자는 풀지 않는다', () => {
+    const c = new TokenCipher(Buffer.alloc(32, 1));
+    const [iv, tag, data] = c.encrypt('secret').split('.');
+    expect(c.decrypt([iv, tag, data].join('.'))).toBe('secret');
+    expect(c.decrypt([iv, tag.slice(0, 8), data].join('.'))).toBeNull();
+    expect(c.decrypt([iv, `${tag}!`, data].join('.'))).toBeNull();
+    expect(c.decrypt([iv, tag].join('.'))).toBeNull();
+  });
 });
