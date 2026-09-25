@@ -8,6 +8,7 @@ const prod = {
   APPLE_CLIENT_IDS: 'app',
   S3_ACCESS_KEY: 'k',
   S3_SECRET_KEY: 's',
+  TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString('base64'),
 };
 
 describe('validateEnv', () => {

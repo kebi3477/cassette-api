@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { importPKCS8, SignJWT } from 'jose';
-import { TokenCipher } from '../common/utils/token-cipher.js';
+import {
+  parseEncryptionKey,
+  TokenCipher,
+} from '../common/utils/token-cipher.js';
 
 const APPLE = 'https://appleid.apple.com';
 
@@ -15,7 +18,12 @@ export class AppleSignInService {
   readonly cipher: TokenCipher;
 
   constructor(private readonly config: ConfigService) {
-    this.cipher = new TokenCipher(config.getOrThrow<string>('JWT_SECRET'));
+    const key = parseEncryptionKey(
+      config.getOrThrow<string>('TOKEN_ENCRYPTION_KEY'),
+    );
+    if (!key)
+      throw new Error('TOKEN_ENCRYPTION_KEY는 32바이트 base64여야 합니다');
+    this.cipher = new TokenCipher(key);
   }
 
   private get clientId(): string | undefined {

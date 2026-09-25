@@ -1,7 +1,7 @@
 import { decodeCursor, encodeCursor } from './cursor.js';
 import { kstDate } from './kst.js';
 import { parseServiceAccount } from './service-account.js';
-import { TokenCipher } from './token-cipher.js';
+import { parseEncryptionKey, TokenCipher } from './token-cipher.js';
 
 describe('공통 유틸', () => {
   it('kstDate: 한국 시간 자정 기준', () => {
@@ -20,12 +20,22 @@ describe('공통 유틸', () => {
     );
   });
 
-  it('TokenCipher: 같은 비밀로만 풀린다', () => {
-    const a = new TokenCipher('secret-a');
+  it('TokenCipher: 같은 키로만 풀린다', () => {
+    const keyA = Buffer.alloc(32, 1);
+    const a = new TokenCipher(keyA);
     const enc = a.encrypt('apple-refresh-token');
     expect(enc).not.toContain('apple');
     expect(a.decrypt(enc)).toBe('apple-refresh-token');
-    expect(new TokenCipher('secret-b').decrypt(enc)).toBeNull();
+    expect(new TokenCipher(Buffer.alloc(32, 2)).decrypt(enc)).toBeNull();
+    expect(() => new TokenCipher(Buffer.alloc(16))).toThrow();
+  });
+
+  it('parseEncryptionKey: 32바이트 base64만', () => {
+    expect(
+      parseEncryptionKey(Buffer.alloc(32, 7).toString('base64'))?.length,
+    ).toBe(32);
+    expect(parseEncryptionKey(Buffer.alloc(16).toString('base64'))).toBeNull();
+    expect(parseEncryptionKey(undefined)).toBeNull();
   });
 
   it('서비스 계정 JSON: 원문과 base64 모두', () => {

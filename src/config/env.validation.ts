@@ -10,10 +10,32 @@ import {
   Max,
   Min,
   MinLength,
+  Validate,
+  ValidatorConstraint,
+  type ValidatorConstraintInterface,
   validateSync,
 } from 'class-validator';
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
+
+/** 개발 전용 기본 토큰 암호화 키 (운영에서는 거절) */
+export const DEV_TOKEN_ENCRYPTION_KEY = Buffer.alloc(
+  32,
+  'cassette-dev-only',
+).toString('base64');
+
+@ValidatorConstraint({ name: 'isBase64Key32' })
+class IsBase64Key32 implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    return (
+      typeof value === 'string' && Buffer.from(value, 'base64').length === 32
+    );
+  }
+
+  defaultMessage(): string {
+    return '32바이트를 base64로 적어야 합니다 (openssl rand -base64 32)';
+  }
+}
 
 export class EnvironmentVariables {
   @IsIn(['development', 'test', 'production'])
@@ -192,6 +214,17 @@ export class EnvironmentVariables {
   @MinLength(32)
   JWT_SECRET: string;
 
+  /**
+   * 저장하는 외부 토큰(Apple refresh token) 암호화 키. 32바이트를 base64로 (`openssl rand -base64 32`).
+   * 운영 필수. 개발은 아래 기본값을 쓴다 (운영에서는 기본값을 거절한다)
+   */
+  @Transform(({ value }: { value: unknown }) =>
+    value === undefined || value === '' ? DEV_TOKEN_ENCRYPTION_KEY : value,
+  )
+  @IsString()
+  @Validate(IsBase64Key32)
+  TOKEN_ENCRYPTION_KEY: string = DEV_TOKEN_ENCRYPTION_KEY;
+
   /** access token 수명(초) */
   @Transform(({ value }) => Number(value))
   @IsInt()
@@ -268,6 +301,11 @@ export function validateEnv(
     if (missing.length > 0) {
       throw new Error(
         `운영 환경에 필요한 환경 변수가 없습니다: ${missing.join(', ')}`,
+      );
+    }
+    if (env.TOKEN_ENCRYPTION_KEY === DEV_TOKEN_ENCRYPTION_KEY) {
+      throw new Error(
+        '운영 환경에는 TOKEN_ENCRYPTION_KEY가 필요합니다 (openssl rand -base64 32)',
       );
     }
     if (env.STORAGE_DRIVER !== 's3') {
