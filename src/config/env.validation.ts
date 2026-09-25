@@ -296,7 +296,7 @@ export class EnvironmentVariables {
 
   @IsUrl()
   APP_STORE_URL_ANDROID: string =
-    'https://play.google.com/store/apps/details?id=app.cassette';
+    'https://play.google.com/store/apps/details?id=com.kebi.cassette';
 }
 
 export function validateEnv(
