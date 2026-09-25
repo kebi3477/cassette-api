@@ -13,6 +13,8 @@ RUN npm run build && npm prune --omit=dev
 
 # ---- runtime ----
 FROM node:22-alpine
+# 테이프 소리 변환 워커(recordings.processor.ts)가 ffmpeg·ffprobe를 쓴다
+RUN apk add --no-cache ffmpeg
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /app/package.json ./
