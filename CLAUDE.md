@@ -11,6 +11,7 @@ Cassette API. 목소리 테이프를 녹음해 친구에게 보내는 앱(`../ca
 - 미니PC에서 docker compose로 운영하고, Cloudflare Tunnel로 외부에 공개한다
 - 두 저장소에 공통으로 적용되는 아키텍처 결정(스키마, 흐름, 미결정 사항)은 `../ARCHITECTURE.md`에 있다 (저장소 바깥 파일)
 - 클라이언트는 Flutter 앱 하나다. 응답 스펙은 앱 도메인 모델과 맞춘다
+- **API 계약서는 `docs/api.md` 하나다.** 엔드포인트·응답·오류 코드를 바꾸면 같은 커밋에서 고치고 변경 이력에 적는다. 오류 코드는 `src/common/errors/error-codes.ts`와 표를 같게 유지한다
 
 ## 폴더 구조 — Nest CLI 생성 구조
 
@@ -57,6 +58,20 @@ npm run build
 npm run lint
 npm test
 npm run test:e2e
+npm run migration:generate -- src/migrations/<이름>   # 엔티티 변경 → 마이그레이션 생성 (빌드 후 dist 기준)
+npm run migration:run      # .env의 DATABASE_URL에 적용
+npm run migration:revert
+```
+
+- 엔티티를 추가하면 `src/config/entities.ts`에, 마이그레이션을 만들면 `src/migrations/index.ts`에 넣는다 (glob 로딩을 쓰지 않는다. vitest와 dist 양쪽에서 같은 목록을 쓰기 위해)
+- 로컬 개발은 Homebrew Postgres(`cassette_dev`)와 Redis를 쓴다. `.env.example`을 `.env`로 복사해 채운다
+- e2e는 `cassette_test` DB를 쓴다. 시작할 때 스키마를 지우고 마이그레이션을 처음부터 적용한다 (`test/global-setup.ts`)
+- 개발 전용 API(`POST /api/auth/dev`, `/api/dev/*`)는 `DevOnlyGuard`로 운영에서 404가 된다
+- 전역 인증 가드가 기본이다. 로그인 없이 부르는 API는 `@Public()`을 붙인다. 보내기·구매·선물처럼 멱등이 필요한 API는 `@Idempotent()`를 붙인다
+
+```bash
+# 운영 (미니PC)
+docker compose --env-file .env.production up -d --build   # 컨테이너 시작 시 마이그레이션 적용
 ```
 
 npm 10.9에는 이 템플릿의 peer 의존성을 풀다가 죽는 버그(`Cannot read properties of null (reading 'edgesOut')`)가 있다. 의존성을 새로 설치할 때는 `npx npm@11 install`을 쓴다.
