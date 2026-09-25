@@ -42,9 +42,12 @@ test/                        # e2e
 - 광고 보상(하루 3회, 1회 10 크레딧)은 AdMob SSV 콜백을 받을 때만 지급한다
 - 결제는 스토어 영수증을 서버에서 검증하고, `transaction_id`는 UNIQUE로 둔다
 - 3분·5분 테이프는 보낼 때 1개 차감한다. 1분은 무제한 무료다
-- 다시 녹음은 무료 3회, 그 뒤로는 5 크레딧이다
+- 공유 링크는 7일 동안 유효하다. 이미 받은 링크(taken), 만료된 링크(expired), 내가 보낸 링크(own)를 구분해 응답한다
+- 가입하면 "가입 선물" 크레딧을 준다
+- 서랍(cap, 기본 12)이 꽉 차도 받은 테이프는 "분류 안 함"에 넣는다. 보관량과 cap을 응답에 담아 앱이 배너를 띄우게 한다
+- 보낸 사람은 자기가 보낸 테이프를 들을 수 없다. 보낸 테이프 조회는 받았는지·들었는지만 준다
 - 녹음 파일은 받는 사람에게만, 짧은 만료의 presigned URL로 준다
-- 가격과 수치는 디자인 원본(Claude Design 프로젝트 https://claude.ai/design/p/42baf543-407c-43b6-a96e-04d5997ef801 의 `design_handoff_cassette_app/source/CassetteApp.logic.js`)을 기준으로 한다
+- 가격과 수치는 디자인 원본 `../design_handoff_cassette_app/source/CassetteApp.logic.js`와 `docs/DATA_MODEL.md`를 기준으로 한다 (저장소 바깥, Claude Design 프로젝트 https://claude.ai/design/p/42baf543-407c-43b6-a96e-04d5997ef801 에서 받은 v2)
 
 ## 명령어
 
