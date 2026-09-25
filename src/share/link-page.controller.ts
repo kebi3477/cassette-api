@@ -1,8 +1,10 @@
-import { Controller, Get, Header, Param, Res } from '@nestjs/common';
+import { Controller, Get, Header, Param, Res, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { Public } from '../common/decorators/public.decorator.js';
 import { AppException } from '../common/errors/app.exception.js';
+import { PublicThrottlerGuard } from '../common/guards/public-throttler.guard.js';
 import { renderErrorPage, renderTapePage, StoreLinks } from './link-page.js';
 import { ShareService } from './share.service.js';
 
@@ -11,6 +13,8 @@ import { ShareService } from './share.service.js';
  * app.setup.ts에서 전역 prefix 제외로 등록한다.
  */
 @Public()
+@UseGuards(PublicThrottlerGuard)
+@Throttle({ public: { limit: 60, ttl: 60_000 } })
 @Controller()
 export class LinkPageController {
   constructor(
