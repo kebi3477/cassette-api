@@ -45,6 +45,7 @@ cp .env.example .env.production
 chmod 600 .env.production
 openssl rand -base64 48   # → JWT_SECRET
 openssl rand -base64 32   # → TOKEN_ENCRYPTION_KEY
+openssl rand -base64 32   # → IDENTITY_HASH_KEY (다른 값)
 openssl rand -base64 24   # → POSTGRES_PASSWORD, MINIO_ROOT_PASSWORD (각각)
 vi .env.production        # 아래 "4. 환경 변수" 표의 필수 값 채우기
 
@@ -57,7 +58,7 @@ curl -s http://127.0.0.1:3000/api/health             # {"status":"ok"}
 curl -s https://api.<도메인>/api/health               # 터널 경유
 ```
 
-> `.env.production`은 git에 올리지 않는다(`.gitignore`). **비밀번호 관리자 등 미니PC 밖에도 사본을 둔다.** 특히 `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`, `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `OFFSITE_*`가 없으면 복원할 수 없다.
+> `.env.production`은 git에 올리지 않는다(`.gitignore`). **비밀번호 관리자 등 미니PC 밖에도 사본을 둔다.** 특히 `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`, `IDENTITY_HASH_KEY`, `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `OFFSITE_*`가 없으면 복원할 수 없다.
 
 ---
 
@@ -133,6 +134,8 @@ docker compose --env-file .env.production logs -f api     # "Migration ... has b
 |---|---|---|
 | `JWT_SECRET` | 필수 | 32자 이상. `openssl rand -base64 48`. 바꾸면 모든 사용자가 다시 로그인한다 |
 | `TOKEN_ENCRYPTION_KEY` | 필수 | 32바이트 base64. `openssl rand -base64 32`. Apple refresh token 암호화. 바꾸면 저장된 Apple 토큰을 철회할 수 없다 |
+| `IDENTITY_HASH_KEY` | 필수 | 32바이트 base64. `openssl rand -base64 32` (`TOKEN_ENCRYPTION_KEY`와 다른 값). 탈퇴한 소셜 계정을 해시로만 기록해 재가입을 제한한다. 바꾸면 그 전에 탈퇴한 계정의 제한이 풀린다 |
+| `REJOIN_COOLDOWN_DAYS` | 선택 | 탈퇴 후 같은 카카오·Apple 계정으로 다시 가입할 수 없는 기간(일). 기본 30 |
 | `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL` | 선택 | 초. 기본 3600 / 5184000(60일) |
 
 ### 로그인

@@ -45,6 +45,8 @@ test/                        # e2e
 - 3분·5분 테이프는 보낼 때 1개 차감한다. 1분은 무제한 무료다
 - 공유 링크는 7일 동안 유효하다. 이미 받은 링크(taken), 만료된 링크(expired), 내가 보낸 링크(own)를 구분해 응답한다
 - 가입하면 "가입 선물" 크레딧을 준다
+- 탈퇴하고 `REJOIN_COOLDOWN_DAYS`(기본 30일) 동안은 같은 카카오·Apple 계정으로 다시 가입할 수 없다(`REJOIN_RESTRICTED`). 탈퇴 계정은 HMAC 해시와 탈퇴 시각만 `withdrawn_identities`에 남기고 기간이 지나면 정리 작업이 지운다. 30일 뒤 재가입하면 가입 선물을 다시 준다
+- 기간 판정은 `ClockService`로 현재 시각을 받는다(e2e에서 시계를 옮긴다)
 - 서랍(cap, 기본 12)이 꽉 차도 받은 테이프는 "분류 안 함"에 넣는다. 보관량과 cap을 응답에 담아 앱이 배너를 띄우게 한다
 - 보낸 사람은 자기가 보낸 테이프를 들을 수 없다. 보낸 테이프 조회는 받았는지·들었는지만 준다
 - 녹음 파일은 받는 사람에게만, 짧은 만료의 presigned URL로 준다
@@ -72,7 +74,7 @@ npm run migration:revert
 - 녹음 파일은 `StorageService`(S3 호환, MinIO/R2)로만 다룬다. 변환 워커는 `recordings.processor.ts`이고 API 프로세스 안에서 돈다
 - 개발 전용 API(`POST /api/auth/dev`, `/api/dev/*`, `/api/dev-storage/*`)는 `DevOnlyGuard`로 운영에서 404가 된다
 - 외부 서비스(카카오, Apple, App Store, Google Play, AdMob 키, FCM)는 서비스 클래스로 감싸고 e2e에서는 `test/fakes.ts`의 가짜로 바꾼다. 키가 없으면 결제 확인은 503, 푸시는 로그만, 탈퇴 연결 해제는 건너뛴다
-- 정리 작업(`jobs/`, 매시간): 24시간 지난 멱등 키, 1시간 넘게 uploading인 녹음, consume 못 한 Play 결제. 공개 엔드포인트는 `PublicThrottlerGuard`로 요청 횟수를 제한한다(e2e는 `THROTTLE_DISABLED=true`)
+- 정리 작업(`jobs/`, 매시간): 24시간 지난 멱등 키, 1시간 넘게 uploading인 녹음, consume 못 한 Play 결제, 재가입 제한 기간이 지난 탈퇴 계정 해시. 공개 엔드포인트는 `PublicThrottlerGuard`로 요청 횟수를 제한한다(e2e는 `THROTTLE_DISABLED=true`)
 - 전역 인증 가드가 기본이다. 로그인 없이 부르는 API는 `@Public()`을 붙인다. 보내기·구매·선물처럼 멱등이 필요한 API는 `@Idempotent()`를 붙인다
 
 ```bash
@@ -81,7 +83,7 @@ docker compose --env-file .env.production up -d --build   # 컨테이너 시작 
 ```
 
 - 운영 compose: postgres, redis, minio, api, cloudflared(Cloudflare Tunnel), pg-backup(매일 pg_dump), offsite-backup(rclone으로 R2/B2 복제). 백업 스크립트는 `ops/backup/`
-- 운영 필수 비밀값: `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`(32바이트 base64, Apple 토큰 암호화), `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `TUNNEL_TOKEN`
+- 운영 필수 비밀값: `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`(32바이트 base64, Apple 토큰 암호화), `IDENTITY_HASH_KEY`(32바이트 base64, 탈퇴 계정 해시), `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `TUNNEL_TOKEN`
 
 npm 10.9에는 이 템플릿의 peer 의존성을 풀다가 죽는 버그(`Cannot read properties of null (reading 'edgesOut')`)가 있다. 의존성을 새로 설치할 때는 `npx npm@11 install`을 쓴다.
 
