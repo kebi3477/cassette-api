@@ -85,6 +85,79 @@ export const ErrorCodes = {
     status: HttpStatus.NOT_FOUND,
     message: '차단한 친구가 아니에요',
   },
+  // recordings
+  RECORDING_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    message: '녹음을 찾을 수 없어요',
+  },
+  RECORDING_NOT_READY: {
+    status: HttpStatus.CONFLICT,
+    message: '테이프 소리로 바꾸는 중이에요',
+  },
+  RECORDING_TOO_LONG: {
+    status: HttpStatus.BAD_REQUEST,
+    message: '테이프 길이를 넘었어요',
+  },
+  RECORDING_TOO_LARGE: {
+    status: HttpStatus.BAD_REQUEST,
+    message: '녹음 파일이 너무 커요',
+  },
+  RECORDING_ALREADY_SENT: {
+    status: HttpStatus.CONFLICT,
+    message: '이미 보낸 녹음이에요',
+  },
+  UPLOAD_NOT_FOUND: {
+    status: HttpStatus.CONFLICT,
+    message: '녹음 파일을 올리지 못했어요. 다시 시도해 주세요',
+  },
+
+  // deliveries · shelf
+  NO_TAPE_LEFT: {
+    status: HttpStatus.CONFLICT,
+    message: '테이프가 없어요. 상점에서 채워 주세요',
+  },
+  NOT_FRIEND: {
+    status: HttpStatus.FORBIDDEN,
+    message: '친구에게만 보낼 수 있어요',
+  },
+  TAPE_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    message: '테이프를 찾을 수 없어요',
+  },
+  TAPE_NOT_OPENED: {
+    status: HttpStatus.CONFLICT,
+    message: '소포를 먼저 뜯어 주세요',
+  },
+  AUDIO_NOT_READY: {
+    status: HttpStatus.CONFLICT,
+    message: '테이프를 불러오지 못했어요',
+  },
+  GROUP_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    message: '칸을 찾을 수 없어요',
+  },
+  INVALID_GROUP_NAME: {
+    status: HttpStatus.BAD_REQUEST,
+    message: '칸 이름은 1~12자로 적어주세요',
+  },
+
+  // share
+  LINK_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    message: '링크를 찾을 수 없어요',
+  },
+  LINK_TAKEN: {
+    status: HttpStatus.CONFLICT,
+    message: '이미 다른 분이 받은 테이프예요',
+  },
+  LINK_EXPIRED: {
+    status: HttpStatus.GONE,
+    message: '링크가 만료됐어요',
+  },
+  LINK_OWN: {
+    status: HttpStatus.CONFLICT,
+    message: '내가 보낸 테이프예요',
+  },
 } as const satisfies Record<string, { status: HttpStatus; message: string }>;
 
 export type ErrorCode = keyof typeof ErrorCodes;
