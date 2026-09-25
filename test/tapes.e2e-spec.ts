@@ -429,7 +429,7 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
         .delete(`/api/shelf/items/${ids[2]}`)
         .set(as(b))
         .expect(204);
-      expect(storage.objects.size).toBe(before - 2);
+      expect(storage.objects.size).toBe(before - 1); // 원본은 변환 뒤 이미 지워져 변환본 1개
       s = await shelf(b);
       expect(s.stored).toBe(2);
       await request(server())
@@ -650,7 +650,7 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
         [...storage.objects.keys()].filter((k) =>
           k.startsWith(`recordings/${userId}/`),
         );
-      expect(await keysOf(a.user.id)).toHaveLength(6);
+      expect(await keysOf(a.user.id)).toHaveLength(3); // 변환이 끝나면 원본은 지우고 변환본만 남는다
 
       await request(server()).delete('/api/users/me').set(as(a)).expect(204);
 
@@ -669,7 +669,7 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
         .set(as(b))
         .expect(200);
       // 링크 테이프와 보내지 않은 녹음의 파일은 지워지고, 받은 테이프 파일(2개)만 남는다
-      expect(await keysOf(a.user.id)).toHaveLength(2);
+      expect(await keysOf(a.user.id)).toHaveLength(1);
 
       await request(server()).delete('/api/users/me').set(as(b)).expect(204);
       expect(await keysOf(a.user.id)).toHaveLength(0);

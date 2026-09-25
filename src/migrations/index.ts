@@ -2,6 +2,7 @@ import { Init1790317777977 } from './1790317777977-Init.js';
 import { Tapes1790318849480 } from './1790318849480-Tapes.js';
 import { Billing1790320326476 } from './1790320326476-Billing.js';
 import { WithdrawnIdentities1790324434860 } from './1790324434860-WithdrawnIdentities.js';
+import { RecordingRawDeletedAt1790350165877 } from './1790350165877-RecordingRawDeletedAt.js';
 
 /**
  * 적용할 마이그레이션 목록 (순서대로).
@@ -12,4 +13,5 @@ export const migrations = [
   Tapes1790318849480,
   Billing1790320326476,
   WithdrawnIdentities1790324434860,
+  RecordingRawDeletedAt1790350165877,
 ];

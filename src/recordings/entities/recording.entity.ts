@@ -72,6 +72,13 @@ export class Recording {
   failureReason: string | null;
 
   /** 파일을 지운 시각 (테이프를 지우거나 탈퇴해서) */
+  /**
+   * 원본(raw) 파일을 지운 시각. 변환이 성공(ready)하면 원본은 필요 없어서 지운다(개인정보 최소화).
+   * 지우기에 실패하면 비어 있고, 정리 작업이 다시 지운다
+   */
+  @Column({ name: 'raw_deleted_at', type: 'timestamptz', nullable: true })
+  rawDeletedAt: Date | null;
+
   @Column({ name: 'purged_at', type: 'timestamptz', nullable: true })
   purgedAt: Date | null;
 

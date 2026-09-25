@@ -10,7 +10,7 @@ import { OperatorInfo, PENDING, PolicyDocument } from './types.js';
  *   카카오 이메일은 is_email_valid·is_email_verified일 때만(auth/kakao.service.ts), Apple 이메일은 email_verified일 때만(auth/apple.service.ts).
  *   카카오 닉네임은 suggestedName 응답에만 쓰고 저장하지 않는다(auth/auth.service.ts).
  * - 회원: users/entities/user.entity.ts · 로그인 유지: auth/entities/refresh-token.entity.ts (SHA-256 해시)
- * - 테이프: recordings/entities, deliveries/entities, shelf/entities · 파일: storage/ (원본 raw + 변환본)
+ * - 테이프: recordings/entities, deliveries/entities, shelf/entities · 파일: storage/ (변환본. 원본 raw는 변환이 끝나면 지운다: recordings.processor.ts)
  * - 친구·차단: friends/entities · 크레딧: wallet/entities, users/entities/tape-inventory.entity.ts
  * - 결제: billing/entities (iap_purchases, billing_events) · 광고: wallet/entities/ad-reward.entity.ts
  * - 푸시: notifications/entities/device-token.entity.ts · 탈퇴 해시: auth/entities/withdrawn-identity.entity.ts
@@ -79,7 +79,7 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
             ],
             [
               '테이프',
-              '녹음 파일(원본과 테이프 소리로 바꾼 파일), 테이프 종류와 길이, 보낸 사람과 받는 사람, 보낸 시각과 뜯은 시각, 태그, 보낼 때의 보낸 사람 이름, 링크로 보낼 때 라벨에 적은 받는 사람 이름, 공유 링크 값과 만료 시각, 서랍 칸 이름과 정렬 순서',
+              '녹음 파일(테이프 소리로 바꾼 파일. 올린 원본 파일은 변환이 끝나면 바로 지웁니다), 테이프 종류와 길이, 보낸 사람과 받는 사람, 보낸 시각과 뜯은 시각, 태그, 보낼 때의 보낸 사람 이름, 링크로 보낼 때 라벨에 적은 받는 사람 이름, 공유 링크 값과 만료 시각, 서랍 칸 이름과 정렬 순서',
               '이용자가 녹음하고 보낼 때. 녹음은 이용자가 녹음 버튼을 누른 동안에만 기기에서 하고, 보내려고 올린 파일만 서버에 저장합니다.',
             ],
             [
@@ -148,6 +148,10 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
             [
               '링크로 보냈지만 아무도 받지 않은 테이프',
               '링크는 7일 동안 유효합니다. 만료된 뒤에도 보낸 사람이 링크를 다시 공유할 수 있도록 보관하고, 보낸 사람이 탈퇴하면 녹음 파일과 함께 삭제합니다.',
+            ],
+            [
+              '올린 녹음의 원본 파일',
+              '테이프 소리로 변환이 끝나면 바로 삭제(변환에 실패하면 다시 시도할 수 있도록 성공할 때까지 보관)',
             ],
             [
               '보내지 않은 녹음',

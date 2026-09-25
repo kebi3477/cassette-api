@@ -61,7 +61,12 @@ export class InMemoryStorage extends StorageService {
     this.put(key, await readFile(filePath), contentType);
   }
 
+  /** true면 delete가 실패한다 (원본 삭제 실패 흉내) */
+  failDelete = false;
+
   delete(keys: string[]): Promise<void> {
+    if (this.failDelete)
+      return Promise.reject(new Error('가짜 저장소 삭제 실패'));
     keys.forEach((k) => this.objects.delete(k));
     return Promise.resolve();
   }

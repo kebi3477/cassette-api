@@ -75,12 +75,24 @@ export class RecordingsProcessor extends WorkerHost {
         ? recording.contentType
         : PROCESSED_CONTENT_TYPE;
       await this.storage.upload(key, output, contentType);
-      await this.recordings.update(
+      const result = await this.recordings.update(
         { id: recording.id, status: 'processing' },
         { status: 'ready', processedKey: key, durationMs, failureReason: null },
       );
+      // 변환이 끝났으니 원본은 지운다 (retry는 failed일 때만 원본을 쓴다). 실패해도 ready는 유지한다
+      if (result.affected) await this.deleteRaw(recording);
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  /** 원본 파일 삭제. 실패하면 경고만 남기고, 정리 작업(jobs/)이 다시 지운다 */
+  private async deleteRaw(recording: Recording): Promise<void> {
+    try {
+      await this.storage.delete([recording.rawKey]);
+      await this.recordings.update(recording.id, { rawDeletedAt: new Date() });
+    } catch (e) {
+      this.logger.warn(`원본 파일 삭제 실패 ${recording.id}: ${String(e)}`);
     }
   }
 

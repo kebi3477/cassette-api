@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import type { AuthResponse } from '../src/auth/dto/auth.response.js';
+import { JobsService } from '../src/jobs/jobs.service.js';
 import {
   bearer,
   createApp,
@@ -146,5 +147,47 @@ describe('recordings (e2e, 메모리 S3 + 가짜 ffmpeg + 로컬 Redis 큐)', ()
       .set(bearer(other.accessToken))
       .expect(404);
     expect(res.body.code).toBe('RECORDING_NOT_FOUND');
+  });
+
+  it('변환이 끝나면 원본(raw)을 지운다. 지우기에 실패해도 ready이고 정리 작업이 다시 지운다', async () => {
+    const created = await create({
+      tapeType: 1,
+      durationMs: 3000,
+      contentType: 'audio/mp4',
+    }).expect(201);
+    const rawKey = storage.keyOf(created.body.upload.url);
+    storage.put(rawKey, Buffer.from('raw'));
+    await request(server())
+      .post(`/api/recordings/${created.body.id}/complete`)
+      .set(bearer(me.accessToken))
+      .expect(200);
+    await waitForStatus(app, me.accessToken, created.body.id, 'ready');
+    await vi.waitFor(() => expect(storage.objects.has(rawKey)).toBe(false));
+    expect(storage.objects.has(rawKey.replace(/raw$/, 'tape.m4a'))).toBe(true);
+
+    // 삭제 실패: ready는 유지, raw는 남음 → 정리 작업이 지운다
+    const second = await create({
+      tapeType: 1,
+      durationMs: 3000,
+      contentType: 'audio/mp4',
+    }).expect(201);
+    const rawKey2 = storage.keyOf(second.body.upload.url);
+    storage.put(rawKey2, Buffer.from('raw'));
+    storage.failDelete = true;
+    try {
+      await request(server())
+        .post(`/api/recordings/${second.body.id}/complete`)
+        .set(bearer(me.accessToken))
+        .expect(200);
+      await waitForStatus(app, me.accessToken, second.body.id, 'ready');
+      await new Promise((r) => setTimeout(r, 200));
+      expect(storage.objects.has(rawKey2)).toBe(true);
+    } finally {
+      storage.failDelete = false;
+    }
+    const cleaned = await app.get(JobsService).cleanupReadyRaw();
+    expect(cleaned).toBeGreaterThanOrEqual(1);
+    expect(storage.objects.has(rawKey2)).toBe(false);
+    expect(await app.get(JobsService).cleanupReadyRaw()).toBe(0);
   });
 });

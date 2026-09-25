@@ -7,6 +7,7 @@ import { RejoinService } from '../auth/rejoin.service.js';
 import { BillingService } from '../billing/billing.service.js';
 import { Recording } from '../recordings/entities/recording.entity.js';
 import { ShelfService } from '../shelf/shelf.service.js';
+import { StorageService } from '../storage/storage.service.js';
 
 export const IDEMPOTENCY_KEY_TTL_HOURS = 24;
 export const STALE_UPLOAD_HOURS = 1;
@@ -22,6 +23,7 @@ export class JobsService {
     private readonly shelf: ShelfService,
     private readonly billing: BillingService,
     private readonly rejoin: RejoinService,
+    private readonly storage: StorageService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR, { name: 'hourly-cleanup' })
@@ -32,6 +34,7 @@ export class JobsService {
       ['방치된 업로드', () => this.cleanupStaleUploads()],
       ['Play consume', () => this.billing.retryPlayConsumes()],
       ['재가입 제한 기록', () => this.rejoin.cleanupExpired()],
+      ['변환 끝난 녹음 원본', () => this.cleanupReadyRaw()],
     ] as const) {
       try {
         const n = await job();
@@ -49,6 +52,31 @@ export class JobsService {
       [IDEMPOTENCY_KEY_TTL_HOURS],
     );
     return (result as [unknown, number])[1] ?? 0;
+  }
+
+  /**
+   * 변환이 끝났는데(ready) 원본이 남아 있는 녹음의 원본 파일을 지운다.
+   * 변환 직후 지우기에 실패한 것과, 원본을 지우기 전에 만든 기존 녹음을 한 번 정리하는 데 쓴다 (한 번에 200개씩)
+   */
+  async cleanupReadyRaw(limit = 200): Promise<number> {
+    const rows: Pick<Recording, 'id' | 'rawKey'>[] =
+      await this.dataSource.manager
+        .createQueryBuilder(Recording, 'r')
+        .select(['r.id', 'r.rawKey'])
+        .where(`r.status = 'ready'`)
+        .andWhere('r.raw_deleted_at IS NULL AND r.purged_at IS NULL')
+        .andWhere('r.processed_key IS NOT NULL')
+        .orderBy('r.created_at', 'ASC')
+        .take(limit)
+        .getMany();
+    if (rows.length === 0) return 0;
+    await this.storage.delete(rows.map((r) => r.rawKey));
+    await this.dataSource.manager.update(
+      Recording,
+      rows.map((r) => r.id),
+      { rawDeletedAt: new Date() },
+    );
+    return rows.length;
   }
 
   /** 1시간 넘게 uploading인 녹음(업로드하다 만 것)을 파일과 함께 지운다 */
