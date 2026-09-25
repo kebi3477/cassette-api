@@ -55,6 +55,29 @@ export class KakaoService {
     };
   }
 
+  /** 탈퇴: 어드민 키로 카카오 연결 끊기. 키가 없으면 건너뛴다 */
+  async unlink(sub: string): Promise<void> {
+    const adminKey = this.config.get<string>('KAKAO_ADMIN_KEY');
+    if (!adminKey) {
+      this.logger.warn('KAKAO_ADMIN_KEY가 없어 카카오 연결 끊기를 건너뜁니다');
+      return;
+    }
+    const res = await fetch(`${KAPI}/v1/user/unlink`, {
+      method: 'POST',
+      headers: {
+        Authorization: `KakaoAK ${adminKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ target_id_type: 'user_id', target_id: sub }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      throw new Error(
+        `카카오 연결 끊기 실패 ${res.status}: ${(await res.text()).slice(0, 200)}`,
+      );
+    }
+  }
+
   private async call<T>(path: string, accessToken: string): Promise<T> {
     let res: Response;
     try {

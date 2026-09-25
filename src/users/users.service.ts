@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { AppleSignInService } from '../auth/apple-sign-in.service.js';
 import { AuthIdentity } from '../auth/entities/auth-identity.entity.js';
+import { KakaoService } from '../auth/kakao.service.js';
 import { AppException } from '../common/errors/app.exception.js';
 import { Delivery } from '../deliveries/entities/delivery.entity.js';
 import { FriendsService } from '../friends/friends.service.js';
@@ -28,6 +30,8 @@ export function normalizeName(raw: string): string {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(User) private readonly users: Repository<User>,
@@ -39,6 +43,8 @@ export class UsersService {
     private readonly deliveries: Repository<Delivery>,
     private readonly friends: FriendsService,
     private readonly shelf: ShelfService,
+    private readonly kakao: KakaoService,
+    private readonly appleSignIn: AppleSignInService,
   ) {}
 
   async getMe(userId: string): Promise<MeResponse> {
@@ -103,6 +109,7 @@ export class UsersService {
    * - 나머지(로그인 계정, 토큰, 친구·차단 양방향, 원장, 보유 테이프, 칸, 멱등 키)는 FK CASCADE
    */
   async withdraw(userId: string): Promise<void> {
+    const identities = await this.identities.findBy({ userId });
     const purged = await this.dataSource.transaction(async (m) => {
       const recordings: Pick<Recording, 'id' | 'rawKey' | 'processedKey'>[] =
         await m
@@ -127,5 +134,21 @@ export class UsersService {
       return recordings;
     });
     await this.shelf.purgeFiles(purged);
+    await this.unlinkSocial(identities);
+  }
+
+  /** 탈퇴 후 소셜 연결 해제 (카카오 연결 끊기, Apple 토큰 철회). 실패해도 탈퇴는 끝난 상태다 */
+  private async unlinkSocial(identities: AuthIdentity[]): Promise<void> {
+    for (const identity of identities) {
+      try {
+        if (identity.provider === 'kakao')
+          await this.kakao.unlink(identity.providerSub);
+        if (identity.provider === 'apple') {
+          await this.appleSignIn.revoke(identity.providerRefreshToken);
+        }
+      } catch (e) {
+        this.logger.error(`${identity.provider} 연결 해제 실패: ${String(e)}`);
+      }
+    }
   }
 }

@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module.js';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthIdentity } from '../auth/entities/auth-identity.entity.js';
 import { Delivery } from '../deliveries/entities/delivery.entity.js';
@@ -14,6 +15,7 @@ import { UsersService } from './users.service.js';
     TypeOrmModule.forFeature([User, TapeInventory, AuthIdentity, Delivery]),
     FriendsModule,
     ShelfModule,
+    forwardRef(() => AuthModule),
   ],
   controllers: [UsersController],
   providers: [UsersService],
