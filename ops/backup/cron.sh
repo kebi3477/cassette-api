@@ -1,6 +1,6 @@
 #!/bin/sh
 # 백업 컨테이너 진입점: CRON_SCHEDULE(UTC)에 JOB을 돌리는 busybox crond를 띄운다.
-# 수동 실행: docker compose run --rm <서비스> /ops/backup/<스크립트>.sh
+# 수동 실행: docker compose --env-file .env.production run --rm --entrypoint /bin/sh <서비스> /ops/backup/<스크립트>.sh
 set -eu
 : "${CRON_SCHEDULE:?CRON_SCHEDULE이 없습니다}"
 : "${JOB:?JOB이 없습니다}"

@@ -76,9 +76,12 @@ npm run migration:revert
 - 전역 인증 가드가 기본이다. 로그인 없이 부르는 API는 `@Public()`을 붙인다. 보내기·구매·선물처럼 멱등이 필요한 API는 `@Idempotent()`를 붙인다
 
 ```bash
-# 운영 (미니PC)
+# 운영 (미니PC) — 설치·배포·백업·복원·환경 변수·콘솔 URL은 docs/deploy.md
 docker compose --env-file .env.production up -d --build   # 컨테이너 시작 시 마이그레이션 적용
 ```
+
+- 운영 compose: postgres, redis, minio, api, cloudflared(Cloudflare Tunnel), pg-backup(매일 pg_dump), offsite-backup(rclone으로 R2/B2 복제). 백업 스크립트는 `ops/backup/`
+- 운영 필수 비밀값: `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`(32바이트 base64, Apple 토큰 암호화), `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `TUNNEL_TOKEN`
 
 npm 10.9에는 이 템플릿의 peer 의존성을 풀다가 죽는 버그(`Cannot read properties of null (reading 'edgesOut')`)가 있다. 의존성을 새로 설치할 때는 `npx npm@11 install`을 쓴다.
 
