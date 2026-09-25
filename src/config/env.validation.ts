@@ -83,6 +83,96 @@ export class EnvironmentVariables {
   @IsString()
   FFPROBE_PATH: string = 'ffprobe';
 
+  /** 녹음 파일 저장소: s3(MinIO·R2) 또는 local(개발 전용, 디스크 + API 서명 URL) */
+  @IsIn(['s3', 'local'])
+  STORAGE_DRIVER: 's3' | 'local' = 's3';
+
+  /** local 드라이버가 파일을 두는 곳 */
+  @IsString()
+  LOCAL_STORAGE_DIR: string = '.data/storage';
+
+  /** real: ffmpeg로 테이프 소리 변환 · passthrough: 원본 그대로(개발 전용, ffmpeg 없이) */
+  @IsIn(['real', 'passthrough'])
+  FFMPEG_MODE: 'real' | 'passthrough' = 'real';
+
+  /** 공개 엔드포인트 요청 횟수 제한 끄기 (e2e 전용) */
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  THROTTLE_DISABLED: boolean = false;
+
+  /** 정리 작업(cron) 끄기 */
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  JOBS_DISABLED: boolean = false;
+
+  // ---- 결제 · 광고 ----
+
+  /** App Store 번들 ID. 없으면 iOS 결제 확인은 503 IAP_UNAVAILABLE */
+  @IsOptional()
+  @IsString()
+  APPLE_BUNDLE_ID?: string;
+
+  /** App Store Connect의 앱 Apple ID(숫자). 운영(Production) 영수증 검증에 필요 */
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === undefined || value === '' ? undefined : Number(value),
+  )
+  @IsInt()
+  APPLE_APP_APPLE_ID?: number;
+
+  /** 샌드박스 결제도 받는다 (앱 심사는 샌드박스로 결제한다) */
+  @Transform(
+    ({ value }) => value === undefined || value === true || value === 'true',
+  )
+  @IsBoolean()
+  APPLE_IAP_ALLOW_SANDBOX: boolean = true;
+
+  /** Apple 루트 인증서(.cer)가 있는 폴더. 없으면 apple.com에서 받아 온다 */
+  @IsOptional()
+  @IsString()
+  APPLE_ROOT_CERTS_DIR?: string;
+
+  /** Google Play 패키지 이름. 없으면 Android 결제 확인은 503 */
+  @IsOptional()
+  @IsString()
+  GOOGLE_PLAY_PACKAGE_NAME?: string;
+
+  /** Google Play Developer API용 서비스 계정 JSON (원문 또는 base64) */
+  @IsOptional()
+  @IsString()
+  GOOGLE_PLAY_SERVICE_ACCOUNT_JSON?: string;
+
+  /** Play 실시간 알림(Pub/Sub 푸시)의 OIDC 토큰 audience. 없으면 RTDN은 503 */
+  @IsOptional()
+  @IsString()
+  GOOGLE_RTDN_AUDIENCE?: string;
+
+  /** FCM HTTP v1용 서비스 계정 JSON (원문 또는 base64). 없으면 푸시는 로그만 */
+  @IsOptional()
+  @IsString()
+  FCM_SERVICE_ACCOUNT_JSON?: string;
+
+  // ---- 탈퇴 시 소셜 연결 해제 ----
+
+  /** 카카오 어드민 키 (연결 끊기) */
+  @IsOptional()
+  @IsString()
+  KAKAO_ADMIN_KEY?: string;
+
+  /** Sign in with Apple 토큰 교환·철회용 */
+  @IsOptional()
+  @IsString()
+  APPLE_TEAM_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  APPLE_SIGN_IN_KEY_ID?: string;
+
+  /** .p8 내용 (줄바꿈은 \n으로 적어도 된다) */
+  @IsOptional()
+  @IsString()
+  APPLE_SIGN_IN_PRIVATE_KEY?: string;
+
   /** 유니버설 링크(apple-app-site-association)용 "<TEAM ID>.<번들 ID>" */
   @IsOptional()
   @IsString()
@@ -179,6 +269,15 @@ export function validateEnv(
       throw new Error(
         `운영 환경에 필요한 환경 변수가 없습니다: ${missing.join(', ')}`,
       );
+    }
+    if (env.STORAGE_DRIVER !== 's3') {
+      throw new Error('운영 환경에서는 STORAGE_DRIVER=s3만 쓸 수 있습니다');
+    }
+    if (env.FFMPEG_MODE !== 'real') {
+      throw new Error('운영 환경에서는 FFMPEG_MODE=real만 쓸 수 있습니다');
+    }
+    if (env.THROTTLE_DISABLED) {
+      throw new Error('운영 환경에서는 THROTTLE_DISABLED를 쓸 수 없습니다');
     }
   }
   return env;

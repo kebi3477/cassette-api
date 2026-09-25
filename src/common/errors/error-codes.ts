@@ -158,6 +158,49 @@ export const ErrorCodes = {
     status: HttpStatus.CONFLICT,
     message: '내가 보낸 테이프예요',
   },
+  // wallet · shop
+  INVALID_GIFT_AMOUNT: {
+    status: HttpStatus.BAD_REQUEST,
+    message: '선물은 10, 30, 50, 100 크레딧만 할 수 있어요',
+  },
+  GIFT_NOT_ALLOWED: {
+    status: HttpStatus.FORBIDDEN,
+    message: '선물할 수 없는 친구예요',
+  },
+  AD_LIMIT_REACHED: {
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    message: '오늘은 다 받았어요',
+  },
+  PRODUCT_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    message: '없는 상품이에요',
+  },
+
+  // billing
+  RECEIPT_INVALID: {
+    status: HttpStatus.BAD_REQUEST,
+    message: '결제를 확인하지 못했어요',
+  },
+  RECEIPT_PENDING: {
+    status: HttpStatus.CONFLICT,
+    message: '결제를 확인하고 있어요. 잠시 후 다시 시도해 주세요',
+  },
+  RECEIPT_ALREADY_USED: {
+    status: HttpStatus.CONFLICT,
+    message: '이미 다른 계정에서 쓴 결제예요',
+  },
+  IAP_UNAVAILABLE: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    message: '지금은 결제를 확인할 수 없어요. 잠시 후 다시 시도해 주세요',
+  },
+  BILLING_NOTIFICATIONS_UNAVAILABLE: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    message: '스토어 알림을 받을 수 없어요',
+  },
+  INVALID_SIGNATURE: {
+    status: HttpStatus.FORBIDDEN,
+    message: '서명이 올바르지 않아요',
+  },
 } as const satisfies Record<string, { status: HttpStatus; message: string }>;
 
 export type ErrorCode = keyof typeof ErrorCodes;
