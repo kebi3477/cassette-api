@@ -1,13 +1,22 @@
-# 미니PC 운영용. 외부 공개는 Cloudflare Tunnel(cloudflared)이 api:3000으로 연결한다.
+# 미니PC 운영용. 자세한 설치·배포·백업·복원은 docs/deploy.md
 # 사용: cp .env.example .env.production && (값 채우기)
 #       docker compose --env-file .env.production up -d --build
-# .env.production 하나에 compose 변수(POSTGRES_*, MINIO_*)와 앱 변수를 함께 둔다.
+# .env.production 하나에 compose 변수(POSTGRES_*, MINIO_*, TUNNEL_TOKEN, OFFSITE_*)와 앱 변수를 함께 둔다.
+# 외부 공개는 cloudflared(Cloudflare Tunnel)만 한다. 호스트의 포트는 127.0.0.1에만 묶는다.
 name: cassette
+
+# 모든 서비스 공통: 로그 파일 크기 제한 (10MB × 5개)
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-cassette}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD를 정해 주세요}
@@ -19,10 +28,12 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *logging
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
@@ -35,13 +46,14 @@ services:
   minio:
     image: minio/minio:latest
     restart: unless-stopped
+    logging: *logging
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-cassette}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD를 정해 주세요}
     volumes:
       - minio-data:/data
-    # 콘솔은 미니PC 안에서만 연다. 9000(S3 API)은 Cloudflare Tunnel이 files.<도메인>으로 공개한다
+    # 9000(S3 API)은 cloudflared가 files.<도메인>으로 공개한다. 콘솔(9001)은 미니PC 안에서만
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
@@ -50,24 +62,31 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 10s
 
   api:
     build: .
     restart: unless-stopped
-    env_file: .env.production
+    logging: *logging
+    env_file:
+      - path: .env.production
+        required: true
     environment:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-cassette}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cassette}
       REDIS_URL: redis://redis:6379
       # 녹음 파일. 앱은 presigned URL로 MinIO에 직접 올리고 받는다.
-      # S3_PUBLIC_ENDPOINT는 Cloudflare Tunnel로 minio:9000을 공개한 주소 (예: https://files.<도메인>)
+      # S3_PUBLIC_ENDPOINT는 cloudflared로 minio:9000을 공개한 주소 (예: https://files.<도메인>)
+      STORAGE_DRIVER: s3
+      FFMPEG_MODE: real
       S3_ENDPOINT: http://minio:9000
       S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:?S3_PUBLIC_ENDPOINT를 정해 주세요}
       S3_ACCESS_KEY: ${MINIO_ROOT_USER:-cassette}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       S3_BUCKET: ${S3_BUCKET:-cassette}
       S3_CREATE_BUCKET: "true"
+    # DB·Redis·MinIO가 healthy가 된 뒤에 시작한다 (시작할 때 마이그레이션을 적용한다)
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,9 +94,100 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    # Cloudflare Tunnel이 같은 호스트에서 붙는다. 외부 포트는 열지 않는다
     ports:
       - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  # Cloudflare Tunnel (토큰 방식). 공개 호스트 이름 → 서비스 연결은 Cloudflare 대시보드에서 정한다 (docs/deploy.md)
+  #   api.<도메인>   → http://api:3000
+  #   <도메인>       → http://api:3000   (PUBLIC_BASE_URL: 링크 페이지 /t/*, /.well-known/*)
+  #   files.<도메인> → http://minio:9000 (S3_PUBLIC_ENDPOINT)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    logging: *logging
+    command: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run"]
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?TUNNEL_TOKEN을 정해 주세요 (Cloudflare Zero Trust > Tunnels)}
+    depends_on:
+      api:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    # 이미지에 셸이 없어 컨테이너 안 healthcheck를 쓸 수 없다. 연결 상태는 대시보드와 메트릭(:2000/ready)으로 본다
+    healthcheck:
+      disable: true
+
+  # 매일 Postgres 백업 (pg_dump -Fc, 최근 BACKUP_KEEP개 보관)
+  pg-backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *logging
+    entrypoint: ["/bin/sh", "/ops/backup/cron.sh"]
+    environment:
+      CRON_SCHEDULE: ${PG_BACKUP_CRON:-0 19 * * *} # UTC 19:00 = 한국 04:00
+      JOB: /bin/sh /ops/backup/pg-backup.sh
+      BACKUP_KEEP: ${PG_BACKUP_KEEP:-14}
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-cassette}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-cassette}
+    volumes:
+      - ./ops/backup:/ops/backup:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "crond"]
+      interval: 60s
+      timeout: 3s
+      retries: 3
+
+  # 매일 외부 저장소로 복제: MinIO 버킷 + Postgres 백업 파일 (Cloudflare R2 / Backblaze B2 등 S3 호환)
+  offsite-backup:
+    image: rclone/rclone:latest
+    restart: unless-stopped
+    logging: *logging
+    entrypoint: ["/bin/sh", "/ops/backup/cron.sh"]
+    environment:
+      CRON_SCHEDULE: ${OFFSITE_BACKUP_CRON:-30 19 * * *} # UTC 19:30 = 한국 04:30 (pg 백업 뒤)
+      JOB: /bin/sh /ops/backup/offsite.sh
+      S3_BUCKET: ${S3_BUCKET:-cassette}
+      OFFSITE_BUCKET: ${OFFSITE_BUCKET:-}
+      OFFSITE_POSTGRES_RETENTION: ${OFFSITE_POSTGRES_RETENTION:-30d}
+      OFFSITE_DELETED_RETENTION: ${OFFSITE_DELETED_RETENTION:-30d}
+      # rclone 리모트 "minio": 이 미니PC의 MinIO
+      RCLONE_CONFIG_MINIO_TYPE: s3
+      RCLONE_CONFIG_MINIO_PROVIDER: Minio
+      RCLONE_CONFIG_MINIO_ENDPOINT: http://minio:9000
+      RCLONE_CONFIG_MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-cassette}
+      RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      # rclone 리모트 "offsite": 외부 저장소 (R2: provider Cloudflare, B2: provider Other)
+      RCLONE_CONFIG_OFFSITE_TYPE: s3
+      RCLONE_CONFIG_OFFSITE_PROVIDER: ${OFFSITE_PROVIDER:-Cloudflare}
+      RCLONE_CONFIG_OFFSITE_ENDPOINT: ${OFFSITE_ENDPOINT:-}
+      RCLONE_CONFIG_OFFSITE_REGION: ${OFFSITE_REGION:-auto}
+      RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID: ${OFFSITE_ACCESS_KEY_ID:-}
+      RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: ${OFFSITE_SECRET_ACCESS_KEY:-}
+      RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET: "true"
+    volumes:
+      - ./ops/backup:/ops/backup:ro
+      - ${BACKUP_DIR:-./backups}:/backups:ro
+    depends_on:
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "crond"]
+      interval: 60s
+      timeout: 3s
+      retries: 3
 
 volumes:
   postgres-data:
