@@ -20,6 +20,7 @@ export const LEDGER_KINDS = [
   'drawer_expand',
   'gift_sent',
   'gift_received',
+  'refund',
   'admin',
 ] as const;
 export type LedgerKind = (typeof LEDGER_KINDS)[number];

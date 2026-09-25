@@ -35,6 +35,10 @@ export class AuthIdentity {
   @Column({ type: 'varchar', length: 320, nullable: true })
   email: string | null;
 
+  /** Apple refresh token (암호화). 탈퇴할 때 토큰 철회에 쓴다 */
+  @Column({ name: 'provider_refresh_token', type: 'text', nullable: true })
+  providerRefreshToken: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
