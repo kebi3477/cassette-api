@@ -1,3 +1,6 @@
+import { Delivery } from '../deliveries/entities/delivery.entity.js';
+import { Recording } from '../recordings/entities/recording.entity.js';
+import { ShelfGroup } from '../shelf/entities/shelf-group.entity.js';
 import { AuthIdentity } from '../auth/entities/auth-identity.entity.js';
 import { RefreshToken } from '../auth/entities/refresh-token.entity.js';
 import { IdempotencyKey } from '../common/entities/idempotency-key.entity.js';
@@ -20,4 +23,7 @@ export const entities = [
   Block,
   CreditLedger,
   IdempotencyKey,
+  Recording,
+  ShelfGroup,
+  Delivery,
 ];
