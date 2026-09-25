@@ -9,6 +9,7 @@ const prod = {
   S3_ACCESS_KEY: 'k',
   S3_SECRET_KEY: 's',
   TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString('base64'),
+  IDENTITY_HASH_KEY: Buffer.alloc(32, 8).toString('base64'),
 };
 
 describe('validateEnv', () => {
@@ -36,5 +37,18 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...prod, S3_SECRET_KEY: '' })).toThrow(
       /S3_SECRET_KEY/,
     );
+  });
+
+  it('IDENTITY_HASH_KEY: 운영 필수, TOKEN_ENCRYPTION_KEY와 달라야 한다. REJOIN_COOLDOWN_DAYS 기본 30', () => {
+    expect(validateEnv(base).REJOIN_COOLDOWN_DAYS).toBe(30);
+    expect(
+      validateEnv({ ...base, REJOIN_COOLDOWN_DAYS: '7' }).REJOIN_COOLDOWN_DAYS,
+    ).toBe(7);
+    expect(() => validateEnv({ ...prod, IDENTITY_HASH_KEY: '' })).toThrow(
+      /IDENTITY_HASH_KEY/,
+    );
+    expect(() =>
+      validateEnv({ ...prod, IDENTITY_HASH_KEY: prod.TOKEN_ENCRYPTION_KEY }),
+    ).toThrow(/IDENTITY_HASH_KEY/);
   });
 });

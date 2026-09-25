@@ -4,6 +4,7 @@ import { DataSource, Repository } from 'typeorm';
 import { AppleSignInService } from '../auth/apple-sign-in.service.js';
 import { AuthIdentity } from '../auth/entities/auth-identity.entity.js';
 import { KakaoService } from '../auth/kakao.service.js';
+import { RejoinService } from '../auth/rejoin.service.js';
 import { AppException } from '../common/errors/app.exception.js';
 import { Delivery } from '../deliveries/entities/delivery.entity.js';
 import { FriendsService } from '../friends/friends.service.js';
@@ -45,6 +46,7 @@ export class UsersService {
     private readonly shelf: ShelfService,
     private readonly kakao: KakaoService,
     private readonly appleSignIn: AppleSignInService,
+    private readonly rejoin: RejoinService,
   ) {}
 
   async getMe(userId: string): Promise<MeResponse> {
@@ -129,6 +131,8 @@ export class UsersService {
           recordings.map((r) => r.id),
         );
       }
+      // 재가입 제한용: 소셜 계정 해시와 탈퇴 시각만 남긴다
+      await this.rejoin.recordWithdrawal(m, identities);
       const result = await m.delete(User, { id: userId });
       if (!result.affected) throw new AppException('USER_NOT_FOUND');
       return recordings;

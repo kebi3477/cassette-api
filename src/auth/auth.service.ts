@@ -11,6 +11,7 @@ import { User } from '../users/entities/user.entity.js';
 import { normalizeName, UsersService } from '../users/users.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import { AppleSignInService } from './apple-sign-in.service.js';
+import { RejoinService } from './rejoin.service.js';
 import { AppleService } from './apple.service.js';
 import { AuthResponse, TokenPair } from './dto/auth.response.js';
 import { AuthIdentity, AuthProvider } from './entities/auth-identity.entity.js';
@@ -46,6 +47,7 @@ export class AuthService {
     private readonly appleSignIn: AppleSignInService,
     private readonly wallet: WalletService,
     private readonly users: UsersService,
+    private readonly rejoin: RejoinService,
   ) {}
 
   async loginWithKakao(accessToken: string): Promise<AuthResponse> {
@@ -169,6 +171,8 @@ export class AuthService {
   ): Promise<AuthIdentity> {
     const name = initialName ? normalizeName(initialName) : null;
     return this.dataSource.transaction(async (manager) => {
+      // 탈퇴 후 재가입 제한 (카카오·Apple, 새로 가입할 때만)
+      await this.rejoin.assertCanSignUp(manager, provider, profile.sub);
       const user = await manager.save(manager.create(User, { name }));
       const identity = await manager.save(
         manager.create(AuthIdentity, {

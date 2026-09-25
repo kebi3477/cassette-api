@@ -51,6 +51,10 @@ export const ErrorCodes = {
     status: HttpStatus.SERVICE_UNAVAILABLE,
     message: '로그인 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요',
   },
+  REJOIN_RESTRICTED: {
+    status: HttpStatus.FORBIDDEN,
+    message: '탈퇴 후 30일 동안은 다시 가입할 수 없어요',
+  },
   INVALID_REFRESH_TOKEN: {
     status: HttpStatus.UNAUTHORIZED,
     message: '다시 로그인해 주세요',

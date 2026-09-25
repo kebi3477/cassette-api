@@ -227,6 +227,7 @@ MinIO·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → 변환 �
 | `IDEMPOTENCY_IN_PROGRESS` | 409 | 처리하고 있어요. 잠시만 기다려 주세요 | | ✅ |
 | `SOCIAL_TOKEN_INVALID` | 401 | 로그인하지 못했어요. 다시 시도해 주세요 | | ✅ |
 | `SOCIAL_PROVIDER_UNAVAILABLE` | 503 | 로그인 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요 | | ✅ |
+| `REJOIN_RESTRICTED` | 403 | 탈퇴 후 30일 동안은 다시 가입할 수 없어요 | `availableAt` (다시 가입할 수 있는 시각, ISO) | ✅ |
 | `INVALID_REFRESH_TOKEN` | 401 | 다시 로그인해 주세요 | | ✅ |
 | `USER_NOT_FOUND` | 404 | 찾을 수 없는 사용자예요 | | ✅ |
 | `INVALID_NAME` | 400 | 이름은 1~8자로 적어주세요 | | ✅ |
@@ -378,7 +379,7 @@ MinIO·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → 변환 �
 ```json
 { "accessToken": "카카오 액세스 토큰" }
 ```
-응답 `200 AuthResponse` · 오류 `401 SOCIAL_TOKEN_INVALID`, `503 SOCIAL_PROVIDER_UNAVAILABLE`
+응답 `200 AuthResponse` · 오류 `401 SOCIAL_TOKEN_INVALID`, `503 SOCIAL_PROVIDER_UNAVAILABLE`, `403 REJOIN_RESTRICTED`(+`availableAt`, 탈퇴 후 30일 안에 새로 가입하려 할 때)
 
 ### ✅ `POST /auth/apple` @공개
 `sign_in_with_apple`의 `identityToken`을 보낸다. 서버가 Apple 공개 키(JWKS)로 서명·`iss`·`aud`(번들 ID)·만료를 검사한다.
@@ -389,7 +390,7 @@ MinIO·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → 변환 �
 - `nonce`: Apple에 `sha256(nonce)`를 넘겼다면 원문을 같이 보낸다(재전송 공격 방지, 권장).
 - Apple은 이름을 토큰에 넣지 않는다. 첫 로그인 때 SDK가 준 이름은 앱이 이름 정하기 화면에 미리 채운다.
 
-응답 `200 AuthResponse` · 오류 `401 SOCIAL_TOKEN_INVALID`, `503 SOCIAL_PROVIDER_UNAVAILABLE`
+응답 `200 AuthResponse` · 오류 `401 SOCIAL_TOKEN_INVALID`, `503 SOCIAL_PROVIDER_UNAVAILABLE`, `403 REJOIN_RESTRICTED`(+`availableAt`)
 
 ### ✅ `POST /auth/dev` @공개 · 개발 전용
 `NODE_ENV=production`이면 `404 NOT_FOUND`. 앱 개발과 e2e 테스트용.
@@ -592,7 +593,7 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 보낸 테이프 상세(`shSentDetail`). `200 SentTape` · `404 TAPE_NOT_FOUND`
 
 ### ✅ `POST /deliveries/sent/{id}/share`
-"링크 다시 공유하기". 아직 아무도 받지 않은 링크 테이프만. 만료 전이면 같은 링크를, 만료됐으면 **새 링크(7일)**를 준다(옛 링크는 `LINK_NOT_FOUND`가 된다).
+"링크 다시 공유하기". 아직 아무도 받지 않은 링크 테이프만. 만료 전이면 같은 링크를, 만료됐으면 **새 링크(7일)**를 준다(옛 링크는 `LINK_NOT_FOUND`가 된다). **확정 정책**: 만료된 링크 테이프의 파일은 지우지 않고, 보낸 사람이 다시 공유할 수 있다.
 응답 `200 { "url": "https://<도메인>/t/…", "expiresAt": "…" }` · 받은 뒤면 `409 LINK_TAKEN`
 
 ### ✅ `GET /deliveries/{id}`
@@ -912,7 +913,9 @@ FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`
 
 ## 19. 회원 탈퇴 데이터 정책
 
-탈퇴 화면 경고("받은 테이프와 크레딧이 모두 사라진다")에 맞춘다. `DELETE /users/me`는 **즉시·영구 삭제**(유예 기간 없음)이고, 같은 소셜 계정으로 다시 로그인하면 새 계정으로 가입된다(가입 선물도 다시 받는다 — 악용되면 재가입 제한을 검토).
+**확정 (2026-09-25)**. 탈퇴 화면 경고("받은 테이프와 크레딧이 모두 사라진다")에 맞춘다. `DELETE /users/me`는 **즉시·영구 삭제**(유예 기간 없음)다.
+
+**재가입 제한**: 탈퇴하고 **30일**(`REJOIN_COOLDOWN_DAYS`) 동안은 같은 카카오·Apple 계정으로 다시 가입할 수 없다(`403 REJOIN_RESTRICTED`, `availableAt`). 30일이 지나 다시 가입하면 새 계정이고 **가입 선물을 다시 받는다**. 개발 로그인(`/auth/dev`)에는 적용하지 않는다. 탈퇴하지 않은 계정의 로그인에는 영향이 없다.
 
 | 데이터 | 처리 | 상태 |
 |---|---|---|
@@ -929,6 +932,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`
 | 광고 보상 기록 | 삭제 | ✅ |
 | Apple 로그인 | Apple 정책에 따라 토큰 철회(`appleid.apple.com/auth/revoke`, client_secret은 .p8로 서명한 JWT). 로그인 때 받은 `authorizationCode`로 얻어 둔 refresh token을 쓴다. 키나 토큰이 없으면 건너뛰고 로그만 | ✅ |
 | 카카오 로그인 | 카카오 연결 끊기(`/v1/user/unlink`, 어드민 키). 키가 없으면 건너뛰고 로그만 | ✅ |
+| **재가입 제한 기록** | 소셜 계정 식별자(provider, 회원번호/sub)는 **원문으로 남기지 않고** HMAC-SHA256 해시(`IDENTITY_HASH_KEY`)와 탈퇴 시각만 `withdrawn_identities`에 남긴다. **목적: 재가입 제한. 보관 기간: 30일**(지나면 매시간 정리 작업이 지운다). 해시 키 없이는 원래 계정을 알아낼 수 없다 | ✅ |
 
 소셜 연결 해제가 실패해도 탈퇴는 진행된다(이미 데이터를 지운 뒤에 부른다).
 
@@ -939,6 +943,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`
 | 날짜 | 내용 |
 |---|---|
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |
+| 2026-09-25 | 정책 확정: 탈퇴 후 30일 재가입 제한(`403 REJOIN_RESTRICTED` + `availableAt`, 30일 뒤 재가입 시 가입 선물 다시 지급), 탈퇴 데이터 정책 확정, 만료 링크 다시 공유 동작 확정 |
 | 2026-09-25 | 링크 웹 페이지 `/t/{token}`을 디자인 하이파이(webOn·leOn)로 다시 만듦: 소포 뜯기 → 테이프 재생, 남은 기간 계산, "앱에서 열기"(`cassette://` 스킴), Open Graph, CSP nonce. `GET /static/og-image.png` 추가 |
 | 2026-09-25 | `POST /billing/iap`의 `store` 값(`app_store` · `play`)과 잘못된 값의 오류(`VALIDATION_FAILED`)를 명시 |
 | 2026-09-25 | 3단계: wallet(잔액·내역·선물), shop(상품·구매), billing(App Store·Google Play 결제 확인, AdMob SSV, 환불 알림), notifications(FCM 기기 등록·푸시) 구현. 로컬 개발 섹션(0장), `STORAGE_DRIVER=local`·`FFMPEG_MODE=passthrough`, `POST /dev/seed`·`POST /dev/credits`·`/dev-storage/*` 추가. 공개 엔드포인트 요청 횟수 제한. 탈퇴 시 카카오 연결 끊기·Apple 토큰 철회(`POST /auth/apple`에 `authorizationCode` 추가). 오류 코드 `GIFT_NOT_ALLOWED`·`RECEIPT_ALREADY_USED`·`IAP_UNAVAILABLE`·`BILLING_NOTIFICATIONS_UNAVAILABLE`·`INVALID_SIGNATURE` 추가. 앱 요청: 친구 테이프 `items` 순서 명시, 분류 안 함은 `groupName: null`, `POST /deliveries`의 `tag` 선택(null 허용) |

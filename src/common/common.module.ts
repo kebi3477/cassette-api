@@ -10,6 +10,7 @@ import { DevOnlyGuard } from './guards/dev-only.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { IdempotencyInterceptor } from './interceptors/idempotency.interceptor.js';
 import { createValidationPipe } from './pipes/validation.pipe.js';
+import { ClockService } from './services/clock.service.js';
 import { IdempotencyService } from './services/idempotency.service.js';
 
 /**
@@ -31,12 +32,13 @@ import { IdempotencyService } from './services/idempotency.service.js';
   ],
   providers: [
     IdempotencyService,
+    ClockService,
     DevOnlyGuard,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
     { provide: APP_PIPE, useFactory: createValidationPipe },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],
-  exports: [IdempotencyService, DevOnlyGuard],
+  exports: [IdempotencyService, ClockService, DevOnlyGuard],
 })
 export class CommonModule {}

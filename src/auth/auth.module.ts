@@ -9,6 +9,7 @@ import { AuthIdentity } from './entities/auth-identity.entity.js';
 import { RefreshToken } from './entities/refresh-token.entity.js';
 import { KakaoService } from './kakao.service.js';
 import { AppleSignInService } from './apple-sign-in.service.js';
+import { RejoinService } from './rejoin.service.js';
 
 @Module({
   imports: [
@@ -18,7 +19,13 @@ import { AppleSignInService } from './apple-sign-in.service.js';
     WalletModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, KakaoService, AppleService, AppleSignInService],
-  exports: [AuthService, KakaoService, AppleSignInService],
+  providers: [
+    AuthService,
+    KakaoService,
+    AppleService,
+    AppleSignInService,
+    RejoinService,
+  ],
+  exports: [AuthService, KakaoService, AppleSignInService, RejoinService],
 })
 export class AuthModule {}

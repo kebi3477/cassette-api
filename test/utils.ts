@@ -9,6 +9,7 @@ import { KakaoService } from '../src/auth/kakao.service.js';
 import { FfmpegService } from '../src/recordings/ffmpeg.service.js';
 import { StorageService } from '../src/storage/storage.service.js';
 import { AppStoreService } from '../src/billing/app-store.service.js';
+import { ClockService } from '../src/common/services/clock.service.js';
 import { GooglePlayService } from '../src/billing/google-play.service.js';
 import { FcmService } from '../src/notifications/fcm.service.js';
 import {
@@ -30,6 +31,13 @@ export const ffmpeg = new FakeFfmpeg();
 export const fcm = new FakeFcm();
 export const appStore = new FakeAppStore();
 export const googlePlay = new FakeGooglePlay();
+/** 옮길 수 있는 시계. clock.offsetMs를 바꾸면 서버가 보는 "지금"이 바뀐다 */
+export const clock = {
+  offsetMs: 0,
+  now(): Date {
+    return new Date(Date.now() + this.offsetMs);
+  },
+};
 
 export interface CreateAppOptions {
   /** true면 메모리 저장소 대신 설정대로(STORAGE_DRIVER) 실제 드라이버를 쓴다 */
@@ -50,7 +58,9 @@ export async function createApp(
     .overrideProvider(AppStoreService)
     .useValue(appStore)
     .overrideProvider(GooglePlayService)
-    .useValue(googlePlay);
+    .useValue(googlePlay)
+    .overrideProvider(ClockService)
+    .useValue(clock);
   if (!opts.realStorage)
     builder = builder.overrideProvider(StorageService).useValue(storage);
   if (!opts.realFfmpeg)

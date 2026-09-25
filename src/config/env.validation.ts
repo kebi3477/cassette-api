@@ -24,6 +24,12 @@ export const DEV_TOKEN_ENCRYPTION_KEY = Buffer.alloc(
   'cassette-dev-only',
 ).toString('base64');
 
+/** 개발 전용 기본 탈퇴 계정 해시 키 (운영에서는 거절) */
+export const DEV_IDENTITY_HASH_KEY = Buffer.alloc(
+  32,
+  'cassette-dev-identity',
+).toString('base64');
+
 @ValidatorConstraint({ name: 'isBase64Key32' })
 class IsBase64Key32 implements ValidatorConstraintInterface {
   validate(value: unknown): boolean {
@@ -225,6 +231,24 @@ export class EnvironmentVariables {
   @Validate(IsBase64Key32)
   TOKEN_ENCRYPTION_KEY: string = DEV_TOKEN_ENCRYPTION_KEY;
 
+  /**
+   * 탈퇴한 소셜 계정 (provider, sub)을 HMAC-SHA256으로 해시하는 키. 32바이트 base64.
+   * 재가입 제한에만 쓴다. TOKEN_ENCRYPTION_KEY와 따로 둔다. 운영 필수
+   */
+  @Transform(({ value }: { value: unknown }) =>
+    value === undefined || value === '' ? DEV_IDENTITY_HASH_KEY : value,
+  )
+  @IsString()
+  @Validate(IsBase64Key32)
+  IDENTITY_HASH_KEY: string = DEV_IDENTITY_HASH_KEY;
+
+  /** 탈퇴 후 같은 소셜 계정으로 다시 가입할 수 없는 기간(일) */
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(0)
+  @Max(3650)
+  REJOIN_COOLDOWN_DAYS: number = 30;
+
   /** access token 수명(초) */
   @Transform(({ value }) => Number(value))
   @IsInt()
@@ -306,6 +330,16 @@ export function validateEnv(
     if (env.TOKEN_ENCRYPTION_KEY === DEV_TOKEN_ENCRYPTION_KEY) {
       throw new Error(
         '운영 환경에는 TOKEN_ENCRYPTION_KEY가 필요합니다 (openssl rand -base64 32)',
+      );
+    }
+    if (env.IDENTITY_HASH_KEY === DEV_IDENTITY_HASH_KEY) {
+      throw new Error(
+        '운영 환경에는 IDENTITY_HASH_KEY가 필요합니다 (openssl rand -base64 32)',
+      );
+    }
+    if (env.IDENTITY_HASH_KEY === env.TOKEN_ENCRYPTION_KEY) {
+      throw new Error(
+        'IDENTITY_HASH_KEY는 TOKEN_ENCRYPTION_KEY와 달라야 합니다',
       );
     }
     if (env.STORAGE_DRIVER !== 's3') {

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { RejoinService } from '../auth/rejoin.service.js';
 import { BillingService } from '../billing/billing.service.js';
 import { Recording } from '../recordings/entities/recording.entity.js';
 import { ShelfService } from '../shelf/shelf.service.js';
@@ -20,6 +21,7 @@ export class JobsService {
     private readonly config: ConfigService,
     private readonly shelf: ShelfService,
     private readonly billing: BillingService,
+    private readonly rejoin: RejoinService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR, { name: 'hourly-cleanup' })
@@ -29,6 +31,7 @@ export class JobsService {
       ['멱등 키', () => this.cleanupIdempotencyKeys()],
       ['방치된 업로드', () => this.cleanupStaleUploads()],
       ['Play consume', () => this.billing.retryPlayConsumes()],
+      ['재가입 제한 기록', () => this.rejoin.cleanupExpired()],
     ] as const) {
       try {
         const n = await job();

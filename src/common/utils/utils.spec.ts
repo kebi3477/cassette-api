@@ -1,4 +1,5 @@
 import { decodeCursor, encodeCursor } from './cursor.js';
+import { hashIdentity } from './identity-hash.js';
 import { kstDate } from './kst.js';
 import { parseServiceAccount } from './service-account.js';
 import { parseEncryptionKey, TokenCipher } from './token-cipher.js';
@@ -50,5 +51,16 @@ describe('공통 유틸', () => {
     ).toBe('e');
     expect(parseServiceAccount('{"a":1}')).toBeNull();
     expect(parseServiceAccount(undefined)).toBeNull();
+  });
+
+  it('hashIdentity: 같은 키·계정이면 같은 해시, 원문은 남지 않는다', () => {
+    const key = Buffer.alloc(32, 3).toString('base64');
+    const h = hashIdentity(key, 'kakao', '12345');
+    expect(h).toMatch(/^[0-9a-f]{64}$/);
+    expect(h).toBe(hashIdentity(key, 'kakao', '12345'));
+    expect(h).not.toBe(hashIdentity(key, 'apple', '12345'));
+    expect(h).not.toBe(
+      hashIdentity(Buffer.alloc(32, 4).toString('base64'), 'kakao', '12345'),
+    );
   });
 });
