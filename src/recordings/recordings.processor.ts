@@ -1,0 +1,88 @@
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Job } from 'bullmq';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Repository } from 'typeorm';
+import { StorageService } from '../storage/storage.service.js';
+import { Recording } from './entities/recording.entity.js';
+import { FfmpegService } from './ffmpeg.service.js';
+import {
+  ConvertJobData,
+  isWithinLimit,
+  MEASURED_TOLERANCE_MS,
+  PROCESSED_CONTENT_TYPE,
+  processedKeyFor,
+  RECORDINGS_QUEUE,
+} from './recordings.constants.js';
+
+/**
+ * 변환 워커. 원본을 받아 ffmpeg로 "테이프 소리"로 바꾸고 결과를 올린다.
+ * 마지막 시도까지 실패하면 녹음을 failed로 바꾼다 (앱: 변환 실패 화면 → retry).
+ */
+@Processor(RECORDINGS_QUEUE, { concurrency: 2 })
+export class RecordingsProcessor extends WorkerHost {
+  private readonly logger = new Logger(RecordingsProcessor.name);
+
+  constructor(
+    @InjectRepository(Recording)
+    private readonly recordings: Repository<Recording>,
+    private readonly storage: StorageService,
+    private readonly ffmpeg: FfmpegService,
+  ) {
+    super();
+  }
+
+  async process(job: Job<ConvertJobData>): Promise<void> {
+    const recording = await this.recordings.findOneBy({
+      id: job.data.recordingId,
+    });
+    if (!recording || recording.status !== 'processing' || recording.purgedAt) {
+      return; // 지워졌거나 이미 끝난 녹음
+    }
+    try {
+      await this.convert(recording);
+    } catch (e) {
+      const last = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
+      this.logger.warn(
+        `변환 실패 ${recording.id} (시도 ${job.attemptsMade + 1}): ${String(e)}`,
+      );
+      if (last) await this.fail(recording.id, String(e).slice(0, 255));
+      throw e;
+    }
+  }
+
+  private async convert(recording: Recording): Promise<void> {
+    const dir = await mkdtemp(join(tmpdir(), 'cassette-'));
+    try {
+      const input = join(dir, 'raw');
+      const output = join(dir, 'tape.m4a');
+      await this.storage.download(recording.rawKey, input);
+      await this.ffmpeg.convertToTape(input, output);
+      const durationMs = await this.ffmpeg.probeDurationMs(output);
+      if (
+        !isWithinLimit(recording.tapeType, durationMs, MEASURED_TOLERANCE_MS)
+      ) {
+        await this.fail(recording.id, `too_long:${durationMs}`);
+        return;
+      }
+      const key = processedKeyFor(recording.ownerId ?? 'orphan', recording.id);
+      await this.storage.upload(key, output, PROCESSED_CONTENT_TYPE);
+      await this.recordings.update(
+        { id: recording.id, status: 'processing' },
+        { status: 'ready', processedKey: key, durationMs, failureReason: null },
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  private async fail(id: string, reason: string): Promise<void> {
+    await this.recordings.update(
+      { id, status: 'processing' },
+      { status: 'failed', failureReason: reason },
+    );
+  }
+}
