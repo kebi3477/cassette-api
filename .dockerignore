@@ -7,3 +7,4 @@ test
 !.env.example
 .git
 *.tsbuildinfo
+.data

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { spawn } from 'node:child_process';
+import { copyFile } from 'node:fs/promises';
 
 const CONVERT_TIMEOUT_MS = 120_000;
 
@@ -50,10 +51,17 @@ export function buildTapeArgs(input: string, output: string): string[] {
   ];
 }
 
-/** ffmpeg·ffprobe 실행을 감싼다. 테스트에서는 목으로 바꾼다 */
+/**
+ * ffmpeg·ffprobe 실행을 감싼다. 테스트에서는 목으로 바꾼다.
+ * FFMPEG_MODE=passthrough(개발 전용)면 원본을 그대로 복사하고 길이는 재지 않는다.
+ */
 @Injectable()
 export class FfmpegService {
   constructor(private readonly config: ConfigService) {}
+
+  get passthrough(): boolean {
+    return this.config.get<string>('FFMPEG_MODE') === 'passthrough';
+  }
 
   private get ffmpeg(): string {
     return this.config.get<string>('FFMPEG_PATH') ?? 'ffmpeg';
@@ -76,11 +84,16 @@ export class FfmpegService {
 
   /** 원본을 테이프 소리로 바꿔 output(m4a)에 쓴다 */
   async convertToTape(input: string, output: string): Promise<void> {
+    if (this.passthrough) {
+      await copyFile(input, output);
+      return;
+    }
     await run(this.ffmpeg, buildTapeArgs(input, output), CONVERT_TIMEOUT_MS);
   }
 
-  /** 파일 길이(ms) */
-  async probeDurationMs(file: string): Promise<number> {
+  /** 파일 길이(ms). passthrough면 null (앱이 알린 길이를 쓴다) */
+  async probeDurationMs(file: string): Promise<number | null> {
+    if (this.passthrough) return null;
     const out = await run(
       this.ffprobe,
       [

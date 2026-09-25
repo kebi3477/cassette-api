@@ -61,7 +61,9 @@ export class RecordingsProcessor extends WorkerHost {
       const output = join(dir, 'tape.m4a');
       await this.storage.download(recording.rawKey, input);
       await this.ffmpeg.convertToTape(input, output);
-      const durationMs = await this.ffmpeg.probeDurationMs(output);
+      // passthrough 모드는 길이를 재지 않으므로 앱이 알린 길이를 쓴다
+      const durationMs =
+        (await this.ffmpeg.probeDurationMs(output)) ?? recording.durationMs;
       if (
         !isWithinLimit(recording.tapeType, durationMs, MEASURED_TOLERANCE_MS)
       ) {
@@ -69,7 +71,10 @@ export class RecordingsProcessor extends WorkerHost {
         return;
       }
       const key = processedKeyFor(recording.ownerId ?? 'orphan', recording.id);
-      await this.storage.upload(key, output, PROCESSED_CONTENT_TYPE);
+      const contentType = this.ffmpeg.passthrough
+        ? recording.contentType
+        : PROCESSED_CONTENT_TYPE;
+      await this.storage.upload(key, output, contentType);
       await this.recordings.update(
         { id: recording.id, status: 'processing' },
         { status: 'ready', processedKey: key, durationMs, failureReason: null },

@@ -56,3 +56,6 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 *.tsbuildinfo
+
+# 개발용 로컬 저장소 (STORAGE_DRIVER=local)
+/.data
