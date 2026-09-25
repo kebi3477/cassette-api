@@ -307,6 +307,7 @@ MinIO·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → 변환 �
 | ✅ | GET | `/share/{token}/web` | 링크 미리보기(웹) @공개 |
 | ✅ | POST | `/share/{token}/web/audio` | 웹 재생 URL @공개 |
 | ✅ | GET | `/t/{token}` | 모바일 웹 페이지(HTML, `/api` 밖) @공개 |
+| ✅ | GET | `/static/og-image.png` | 링크 미리보기 대표 이미지 (`/api` 밖) @공개 |
 | ✅ | GET | `/.well-known/apple-app-site-association` · `/.well-known/assetlinks.json` | 유니버설 링크·앱 링크 (`/api` 밖, 환경 변수가 없으면 404) @공개 |
 | ✅ | GET | `/wallet` | 잔액 + 오늘 남은 광고 |
 | ✅ | GET | `/wallet/ledger` | 크레딧 내역 |
@@ -692,8 +693,16 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 - 웹에서 들어도 받은 것(claim)으로 치지 않는다. 오류: `LINK_TAKEN`, `LINK_EXPIRED`, `LINK_NOT_FOUND`
 
 ### ✅ `GET /t/{token}` @공개 (`/api` 밖, HTML)
-모바일 웹 페이지: "○○님이 테이프를 보냈어요" → 소포 뜯기 → 웹 재생, 아래에 App Store / Google Play, "앱이 없어도 이 페이지에서 7일 동안 들을 수 있어요". 받은/만료된/없는 링크는 같은 톤의 안내 페이지(409/410/404).
-`/.well-known/apple-app-site-association`(`/t/*`)과 `/.well-known/assetlinks.json`도 제공한다(환경 변수 `APPLE_APP_ID`, `ANDROID_PACKAGE_NAME`, `ANDROID_SHA256_FINGERPRINTS`가 없으면 404).
+모바일 웹 페이지. 디자인 `webOn`·`leOn` 블록을 하이파이로 옮긴 서버 렌더 HTML 한 장이다(CSS·JS 인라인, 외부는 SUIT 폰트만).
+- 흐름: 소포 흔들림(`shake 2.2s`) → 탭해서 뜯기(`tearL`/`tearR` .7s, 750ms 뒤) → 테이프 등장(`insert` .7s) → 700ms 뒤 자동 재생(`POST /share/{token}/web/audio`의 URL, 릴 감김·진행 바) → 앱 설치 안내(App Store / Google Play, `APP_STORE_URL_*`)
+- 문구는 원본 그대로이고, "앱이 없어도 이 페이지에서 **N일** 동안 들을 수 있어요"의 N은 `expiresAt`까지 남은 날(올림)
+- **앱에서 열기**: `cassette://t/{token}`(Android는 `intent://t/{token}#Intent;scheme=cassette;package=<ANDROID_PACKAGE_NAME>;…`)을 열고, 1.6초 안에 앱으로 넘어가지 않으면 스토어로 보낸다. **앱은 URL 스킴 `cassette`를 등록하고 `cassette://t/{token}`을 링크 열기(`GET /share/{token}`)로 처리해야 한다**
+- 상태별 응답: 받을 수 있음 `200` · 이미 받음 `409`(leOn taken) · 만료 `410`(leOn expired) · 없음 `404`(같은 톤의 "테이프를 찾을 수 없어요")
+- 카카오톡·문자 미리보기(Open Graph): `og:title` "○○님이 테이프를 보냈어요", `og:description` "3분 테이프 · 앱이 없어도 …", `og:image` `https://<도메인>/static/og-image.png`(핸드오프 `assets/app-icon.svg`를 600×600 PNG로 변환)
+- 보안: 이름은 HTML 이스케이프, `Content-Security-Policy`는 요청마다 새 nonce(`script-src 'nonce-…'`, `style-src 'nonce-…' https://cdn.jsdelivr.net`, `default-src 'none'`), `Referrer-Policy: no-referrer`, `Cache-Control: no-store`
+- 웹은 로그인이 없어 **보낸 사람 본인인지 알 수 없다.** 그래서 웹에서는 `own` 화면을 띄우지 않고, 보낸 사람이 앱으로 링크를 열면 앱이 `LINK_OWN`을 받는다
+
+`GET /static/og-image.png`(대표 이미지), `/.well-known/apple-app-site-association`(`/t/*`), `/.well-known/assetlinks.json`도 제공한다(환경 변수 `APPLE_APP_ID`, `ANDROID_PACKAGE_NAME`, `ANDROID_SHA256_FINGERPRINTS`가 없으면 404).
 
 ---
 
@@ -930,6 +939,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`
 | 날짜 | 내용 |
 |---|---|
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |
+| 2026-09-25 | 링크 웹 페이지 `/t/{token}`을 디자인 하이파이(webOn·leOn)로 다시 만듦: 소포 뜯기 → 테이프 재생, 남은 기간 계산, "앱에서 열기"(`cassette://` 스킴), Open Graph, CSP nonce. `GET /static/og-image.png` 추가 |
 | 2026-09-25 | `POST /billing/iap`의 `store` 값(`app_store` · `play`)과 잘못된 값의 오류(`VALIDATION_FAILED`)를 명시 |
 | 2026-09-25 | 3단계: wallet(잔액·내역·선물), shop(상품·구매), billing(App Store·Google Play 결제 확인, AdMob SSV, 환불 알림), notifications(FCM 기기 등록·푸시) 구현. 로컬 개발 섹션(0장), `STORAGE_DRIVER=local`·`FFMPEG_MODE=passthrough`, `POST /dev/seed`·`POST /dev/credits`·`/dev-storage/*` 추가. 공개 엔드포인트 요청 횟수 제한. 탈퇴 시 카카오 연결 끊기·Apple 토큰 철회(`POST /auth/apple`에 `authorizationCode` 추가). 오류 코드 `GIFT_NOT_ALLOWED`·`RECEIPT_ALREADY_USED`·`IAP_UNAVAILABLE`·`BILLING_NOTIFICATIONS_UNAVAILABLE`·`INVALID_SIGNATURE` 추가. 앱 요청: 친구 테이프 `items` 순서 명시, 분류 안 함은 `groupName: null`, `POST /deliveries`의 `tag` 선택(null 허용) |
 | 2026-09-25 | 2단계: recordings, deliveries, shelf, share(+웹 페이지 `/t/{token}`, `.well-known`), 친구 테이프 구현. `Me.drawer.unopenedCount`·`GET /shelf`의 `unopenedCount` 추가(앱 요청). 변환 후 실제 길이로 `durationMs` 갱신 명시(앱 요청). `GET /friends`는 차단한 사람 제외 명시(앱 요청). `GET /share/{token}`에 `state`·`deliveryId`, 오류 코드 `TAPE_NOT_OPENED`·`UPLOAD_NOT_FOUND`·`RECORDING_TOO_LARGE` 추가. `PATCH /shelf/items`의 `groupId`·`afterId` 필수 |
