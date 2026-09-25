@@ -66,6 +66,8 @@ npm run migration:revert
 - 엔티티를 추가하면 `src/config/entities.ts`에, 마이그레이션을 만들면 `src/migrations/index.ts`에 넣는다 (glob 로딩을 쓰지 않는다. vitest와 dist 양쪽에서 같은 목록을 쓰기 위해)
 - 로컬 개발은 Homebrew Postgres(`cassette_dev`)와 Redis를 쓴다. `.env.example`을 `.env`로 복사해 채운다
 - e2e는 `cassette_test` DB를 쓴다. 시작할 때 스키마를 지우고 마이그레이션을 처음부터 적용한다 (`test/global-setup.ts`)
+- e2e는 로컬 Redis를 실제로 쓰고(BullMQ 접두어 `cassette-e2e`), 저장소와 ffmpeg는 `test/fakes.ts`의 메모리 저장소·가짜 ffmpeg로 바꾼다. 실제 ffmpeg 테스트는 ffmpeg가 있을 때만 돈다
+- 녹음 파일은 `StorageService`(S3 호환, MinIO/R2)로만 다룬다. 변환 워커는 `recordings.processor.ts`이고 API 프로세스 안에서 돈다
 - 개발 전용 API(`POST /api/auth/dev`, `/api/dev/*`)는 `DevOnlyGuard`로 운영에서 404가 된다
 - 전역 인증 가드가 기본이다. 로그인 없이 부르는 API는 `@Public()`을 붙인다. 보내기·구매·선물처럼 멱등이 필요한 API는 `@Idempotent()`를 붙인다
 
