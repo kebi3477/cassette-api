@@ -37,25 +37,32 @@ export class AdmobService {
 
   /** @param rawQuery `?` 뒤의 원래 쿼리 문자열 (디코딩하지 않은 그대로) */
   async verify(rawQuery: string): Promise<SsvParams> {
-    const at = rawQuery.indexOf('&signature=');
-    if (at < 0) throw new AppException('INVALID_SIGNATURE');
-    const message = rawQuery.slice(0, at);
     const params = new URLSearchParams(rawQuery);
+    // 거절 이유를 남긴다 (서명·값은 남기지 않고 파라미터 이름과 key_id만)
+    const reject = (reason: string): never => {
+      this.logger.warn(
+        `SSV 거절: ${reason} (key_id=${params.get('key_id') ?? '-'}, params=${[...params.keys()].join(',')})`,
+      );
+      throw new AppException('INVALID_SIGNATURE');
+    };
+    const at = rawQuery.indexOf('&signature=');
+    if (at < 0) reject('서명 없음');
+    const message = rawQuery.slice(0, at);
     const signature = params.get('signature');
     const keyId = params.get('key_id');
-    if (!signature || !keyId) throw new AppException('INVALID_SIGNATURE');
+    if (!signature || !keyId) reject('signature 또는 key_id 없음');
 
-    let pem = (await this.keys(false)).get(keyId);
-    if (!pem) pem = (await this.keys(true)).get(keyId); // 키가 바뀌었을 수 있다
-    if (!pem) throw new AppException('INVALID_SIGNATURE');
+    let pem = (await this.keys(false)).get(keyId!);
+    if (!pem) pem = (await this.keys(true)).get(keyId!); // 키가 바뀌었을 수 있다
+    if (!pem) reject('모르는 key_id');
 
     // web-safe base64만 받는다 (잘못된 글자를 버리고 해석하지 않게)
-    const signatureBytes = decodeBase64UrlStrict(signature);
+    const signatureBytes = decodeBase64UrlStrict(signature!);
     if (!signatureBytes || signatureBytes.length === 0) {
-      throw new AppException('INVALID_SIGNATURE');
+      reject('서명 형식 오류');
     }
-    const ok = verify('sha256', Buffer.from(message), pem, signatureBytes);
-    if (!ok) throw new AppException('INVALID_SIGNATURE');
+    const ok = verify('sha256', Buffer.from(message), pem!, signatureBytes!);
+    if (!ok) reject('서명 불일치');
 
     const transactionId = params.get('transaction_id');
     const userId = params.get('user_id');
