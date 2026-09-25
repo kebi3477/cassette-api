@@ -951,6 +951,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`
 | 날짜 | 내용 |
 |---|---|
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |
+| 2026-09-26 | 개인정보 처리방침·이용약관 1.1 (정책 결정 반영, `docs/policy.md`). 녹음 원본은 변환이 끝나면 삭제, 5년 지난 결제 기록 자동 파기 (응답 변경 없음) |
 | 2026-09-25 | 개인정보 처리방침 `GET /privacy`·이용약관 `GET /terms` 추가 (HTML, `/api` 밖, 앱 설정 → 정보와 스토어 등록 URL용) |
 | 2026-09-25 | 정책 확정: 탈퇴 후 30일 재가입 제한(`403 REJOIN_RESTRICTED` + `availableAt`, 30일 뒤 재가입 시 가입 선물 다시 지급), 탈퇴 데이터 정책 확정, 만료 링크 다시 공유 동작 확정 |
 | 2026-09-25 | 링크 웹 페이지 `/t/{token}`을 디자인 하이파이(webOn·leOn)로 다시 만듦: 소포 뜯기 → 테이프 재생, 남은 기간 계산, "앱에서 열기"(`cassette://` 스킴), Open Graph, CSP nonce. `GET /static/og-image.png` 추가 |

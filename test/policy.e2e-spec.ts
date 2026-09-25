@@ -65,4 +65,31 @@ describe('정책 페이지 /privacy · /terms (e2e, 운영자 정보 없음)', (
     );
     expect(terms).toContain('하루 3번까지');
   });
+
+  it('정책 결정 1.1 반영: 버전·개정 이력, 만 14세, 청약철회, 유효기간, 종료 30일, 원본 삭제, AdMob, 고지 기간', async () => {
+    const privacy = (await request(app.getHttpServer()).get('/privacy')).text;
+    expect(privacy).toContain('버전 1.1');
+    expect(privacy).toContain('<h2>개정 이력</h2>');
+    expect(privacy).toContain('만 14세 이상만 이용할 수 있습니다');
+    expect(privacy).toContain('테이프 소리로 변환이 끝나면 바로 삭제');
+    expect(privacy).toContain(
+      '5년이 지나면 매시간 도는 정리 작업이 삭제합니다',
+    );
+    expect(privacy).toContain('Google LLC (AdMob)');
+    expect(privacy).toContain('iOS 광고 식별자(IDFA)를 쓰지 않으며');
+    expect(privacy).toContain('리버스 프록시는 접속 로그를 남기지 않습니다');
+    expect(privacy).toContain('시행 7일 전');
+    expect(privacy).not.toContain(
+      '연동할 때 보내는 항목을 이 방침에 추가합니다',
+    );
+
+    const terms = (await request(app.getHttpServer()).get('/terms')).text;
+    expect(terms).toContain('버전 1.1');
+    expect(terms).toContain('결제일부터 7일 안에 청약철회를 할 수 있습니다');
+    expect(terms).toContain('17조 2항 5호');
+    expect(terms).toContain('크레딧에는 유효기간이 없습니다.');
+    expect(terms).toContain('종료일 30일 전까지 공지');
+    expect(terms).toContain('만 14세 이상만 가입해 이용할 수 있습니다');
+    expect(terms).toContain('적용일 30일 전부터 알립니다');
+  });
 });

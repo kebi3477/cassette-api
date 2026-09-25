@@ -116,6 +116,11 @@ export function renderPolicyPage(
 <div class="intro">${doc.intro.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}</div>
 <nav aria-label="목차"><ol>${toc}</ol></nav>
 ${doc.sections.map(section).join('\n')}
+<section id="history"><h2>개정 이력</h2><ul>${doc.history
+    .map(
+      (h) => `<li>버전 ${escapeHtml(h.version)}: ${escapeHtml(h.summary)}</li>`,
+    )
+    .join('')}</ul></section>
 <footer class="links">${other}</footer>
 </main></body></html>`;
 }

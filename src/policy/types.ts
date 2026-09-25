@@ -27,6 +27,8 @@ export interface PolicyDocument {
   effectiveDate: string;
   intro: string[];
   sections: PolicySection[];
+  /** 개정 이력 (최신이 앞) */
+  history: { version: string; summary: string }[];
 }
 
 /** 운영자 정보 (POLICY_* 환경 변수). 비어 있으면 "준비 중" */
