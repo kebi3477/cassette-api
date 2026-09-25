@@ -29,6 +29,9 @@
     "migration:run:prod": "typeorm -d dist/config/data-source.js migration:run"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1140.0",
+    "@aws-sdk/s3-request-presigner": "^3.1140.0",
+    "@nestjs/bullmq": "^12.0.0",
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.0.1",
     "@nestjs/core": "^12.0.1",
@@ -36,9 +39,11 @@
     "@nestjs/mapped-types": "^12.0.0",
     "@nestjs/platform-express": "^12.0.1",
     "@nestjs/typeorm": "^12.0.1",
+    "bullmq": "^5.81.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^18.0.3",
+    "fractional-indexing": "^4.0.0",
     "jose": "^6.2.12",
     "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",
