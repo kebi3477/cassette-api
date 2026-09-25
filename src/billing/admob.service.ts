@@ -9,7 +9,8 @@ const KEYS_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface SsvParams {
   transactionId: string;
-  userId: string;
+  /** 앱이 ServerSideVerificationOptions로 넣은 사용자. AdMob 콘솔의 URL 확인 요청에는 없다 */
+  userId: string | null;
   rewardAmount: number;
   adUnit: string;
 }
@@ -61,15 +62,27 @@ export class AdmobService {
     if (!signatureBytes || signatureBytes.length === 0) {
       reject('서명 형식 오류');
     }
-    const ok = verify('sha256', Buffer.from(message), pem!, signatureBytes!);
+    // Google 공식 검증기(RewardedAdsVerifier)는 URI.getQuery(), 즉 퍼센트 디코딩한 쿼리를 검증한다.
+    // reward_item처럼 인코딩된 값(예: 한글 "크레딧")이 있으면 원문과 달라지므로 둘 다 확인한다.
+    const matches = (content: string) =>
+      verify('sha256', Buffer.from(content), pem!, signatureBytes!);
+    let decoded: string | null = null;
+    try {
+      decoded = decodeURIComponent(message);
+    } catch {
+      decoded = null;
+    }
+    const ok =
+      matches(message) ||
+      (decoded !== null && decoded !== message && matches(decoded));
     if (!ok) reject('서명 불일치');
 
     const transactionId = params.get('transaction_id');
     const userId = params.get('user_id');
-    if (!transactionId || !userId) throw new AppException('VALIDATION_FAILED');
+    if (!transactionId) throw new AppException('VALIDATION_FAILED');
     return {
       transactionId,
-      userId,
+      userId: userId || null,
       rewardAmount: Number(params.get('reward_amount') ?? 0),
       adUnit: params.get('ad_unit') ?? '',
     };

@@ -131,6 +131,11 @@ export class BillingService {
   /** AdMob SSV 콜백. 서명이 맞으면 광고 보상을 준다 (중복·하루 3회 초과는 조용히 무시) */
   async handleAdmobSsv(rawQuery: string): Promise<void> {
     const p = await this.admob.verify(rawQuery);
+    if (!p.userId) {
+      // AdMob 콘솔의 "URL 확인" 요청 등. 서명은 맞으니 200으로 답하고 지급은 하지 않는다
+      this.logger.log(`user_id 없는 SSV 콜백 (지급 안 함): ${p.transactionId}`);
+      return;
+    }
     const result = await this.wallet.grantAdReward(p.userId, p.transactionId);
     if (result !== 'granted') {
       this.logger.log(`광고 보상 지급 안 함 (${result}): ${p.transactionId}`);

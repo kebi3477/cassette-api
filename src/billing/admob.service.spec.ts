@@ -57,4 +57,33 @@ describe('AdmobService.verify', () => {
       code: 'INVALID_SIGNATURE',
     });
   });
+
+  it('AdMob처럼 퍼센트 디코딩한 쿼리에 서명해도 받는다 (한글 reward_item)', async () => {
+    const encoded =
+      'ad_network=1&ad_unit=2&reward_amount=10&reward_item=%ED%81%AC%EB%A0%88%EB%94%A7&timestamp=1&transaction_id=t2&user_id=u2';
+    const sig = sign(
+      'sha256',
+      Buffer.from(decodeURIComponent(encoded)),
+      privateKey,
+    ).toString('base64url');
+    await expect(
+      service.verify(`${encoded}&signature=${sig}&key_id=7`),
+    ).resolves.toMatchObject({ transactionId: 't2', userId: 'u2' });
+    // 디코딩한 내용을 바꾸면 여전히 거절
+    await expect(
+      service.verify(
+        `${encoded.replace('user_id=u2', 'user_id=u3')}&signature=${sig}&key_id=7`,
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_SIGNATURE' });
+  });
+
+  it('user_id가 없는 콜백(콘솔 URL 확인)은 userId null로 통과한다', async () => {
+    const q = query(
+      'ad_network=1&ad_unit=1234567890&reward_amount=1&reward_item=Reward&timestamp=1&transaction_id=123456789',
+    );
+    await expect(service.verify(q)).resolves.toMatchObject({
+      transactionId: '123456789',
+      userId: null,
+    });
+  });
 });
