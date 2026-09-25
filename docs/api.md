@@ -12,9 +12,36 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 3. [오류 코드](#3-오류-코드)
 4. [엔드포인트 한눈에 보기](#4-엔드포인트-한눈에-보기)
 5. [app-version](#5-app-version) · [auth](#6-auth) · [users](#7-users) · [friends](#8-friends) · [recordings](#9-recordings) · [deliveries](#10-deliveries) · [shelf](#11-shelf) · [share](#12-share) · [wallet](#13-wallet) · [shop](#14-shop) · [billing](#15-billing) · [notifications](#16-notifications) · [dev](#17-dev-개발-전용)
-6. [화면 → API 대응표](#18-화면--api-대응표-디자인-v2)
+6. [로컬 개발 서버에 붙기](#0-로컬-개발-서버에-붙기) · [화면 → API 대응표](#18-화면--api-대응표-디자인-v2)
 7. [회원 탈퇴 데이터 정책](#19-회원-탈퇴-데이터-정책)
 8. [변경 이력](#20-변경-이력)
+
+---
+
+## 0. 로컬 개발 서버에 붙기
+
+MinIO·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → 변환 → 보내기 → 재생, 상점, 크레딧)을 돌릴 수 있다.
+
+1. 서버 실행 (`cassette-api`에서)
+   ```bash
+   cp .env.example .env            # 처음 한 번. DATABASE_URL, JWT_SECRET, PUBLIC_BASE_URL 채우기
+   createdb cassette_dev           # 처음 한 번 (Homebrew Postgres)
+   npm run migration:run
+   npm run start:dev               # http://<맥 IP>:3000/api
+   ```
+   - 실기기·에뮬레이터에서 붙으면 `.env`의 `PUBLIC_BASE_URL`을 **기기에서 닿는 주소**(예: `http://192.168.0.10:3000`)로 바꾼다. 업로드·재생 URL과 링크 주소가 이 값으로 만들어진다. (Android 에뮬레이터는 `http://10.0.2.2:3000`)
+2. 저장소·변환 모드 (개발 기본값)
+   | 환경 변수 | 개발 | 운영 |
+   |---|---|---|
+   | `STORAGE_DRIVER` | `local`: 파일을 `.data/storage`에 두고, 업로드·재생은 API의 서명 URL(`PUT/GET /api/dev-storage/{key}?op=&exp=&ct=&sig=`) | `s3` (MinIO / R2 presigned URL). 운영에서 `local`이면 서버가 시작하지 않는다 |
+   | `FFMPEG_MODE` | `passthrough`: 원본을 그대로 결과로 쓰고, 길이는 앱이 알린 `durationMs` | `real` (강제) |
+   - 앱 코드는 드라이버와 상관없이 같다: `upload.url` + `upload.headers`로 PUT, `preview.url` / 재생 `url`로 GET. 서명 URL은 Range 요청도 된다.
+   - 실제 테이프 소리를 들으려면 `brew install ffmpeg` 후 `FFMPEG_MODE=real`.
+3. 개발 로그인: `POST /api/auth/dev { "key": "minkyung", "name": "민경" }` → `accessToken`
+4. 프로토타입 초기 데이터: `POST /api/dev/seed` (Bearer) → 친구 6명, 분류 안 함 2개(안 뜯음, 1개는 링크로 받음), 칸 3개(테이프 8개), 보낸 기록 4개, 크레딧 120 + 내역 5줄, 3분 테이프 2개, 서랍 12. 오디오는 생성한 톤(WAV, 3~6초)이라 바로 재생된다. 다시 부르면 그 계정의 테이프·친구·내역을 지우고 새로 만든다.
+   - 친구만 따로: `POST /api/dev/friends { "name": "지현", "starred": true }`
+5. 크레딧: 스토어 결제와 AdMob 콜백은 로컬에서 받을 수 없으니 `POST /api/dev/credits`를 쓴다 ([17. dev](#17-dev-개발-전용)).
+6. 두 기기로 주고받기: 각 기기에서 다른 `key`로 개발 로그인 → 한쪽에서 `POST /api/dev/friends { "userId": "<상대 id>" }`.
 
 ---
 
@@ -33,6 +60,7 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 | 빈 응답 | 돌려줄 게 없으면 `204 No Content` |
 | 목록 | `{ "items": [...] }`. 페이지가 있으면 `{ "items": [...], "nextCursor": "..." \| null }`, 요청은 `?cursor=&limit=` (limit 기본 30, 최대 100) |
 | 모르는 필드 | 요청 본문에 문서에 없는 필드가 있으면 `400 VALIDATION_FAILED` |
+| 요청 횟수 제한 | 공개 엔드포인트(auth: IP당 1분 20번, 링크 웹 페이지·`/share/*/web`: 60번, `/share/*/web/audio`: 30번)는 넘으면 `429 RATE_LIMITED` |
 
 ### 인증 흐름
 1. 카카오/Apple SDK로 로그인 → 받은 토큰을 `POST /auth/kakao` 또는 `POST /auth/apple`로 보낸다.
@@ -49,7 +77,7 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 - 첫 요청이 오류로 끝났으면 키는 풀린다(같은 키로 다시 시도 가능).
 - 같은 키를 다른 본문·경로에 쓰면 `422 IDEMPOTENCY_KEY_REUSED`, 첫 요청이 아직 처리 중이면 `409 IDEMPOTENCY_IN_PROGRESS`(잠시 뒤 같은 키로 재시도).
 - 헤더가 없으면 `400 IDEMPOTENCY_KEY_REQUIRED`.
-- 저장 기간: 24시간 (⏳ 오래된 키 정리 작업은 3단계에서).
+- 저장 기간: 24시간 (매시간 정리 작업이 지운다).
 
 ### 오류 형식
 모든 오류는 같은 모양이다.
@@ -109,7 +137,7 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 ```
 
 ### Tag ✅
-테이프 라벨 태그. 서버는 코드만 저장하고 문구는 앱이 가진다.
+테이프 라벨 태그. **선택 값이고 없으면 `null`**(디자인 v2에는 태그를 고르거나 보여 주는 화면이 없어서 앱은 보내지 않는다). 서버는 코드만 저장한다.
 | code | 앱 문구 (`TAGS`) |
 |---|---|
 | `birthday` | 생일 축하해 |
@@ -164,19 +192,21 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 - 받는 사람이 나를 차단해서 전달되지 않은 테이프도 계속 `unopened`로 보인다
 - 받는 사람이 서랍에서 지워도 보낸 테이프 목록에는 남는다. 받는 사람이 탈퇴하면 목록에서 사라진다
 
-### LedgerEntry ⏳
+### LedgerEntry ✅
 ```json
 { "id": "…", "delta": -30, "reason": "3분 테이프 구매", "kind": "tape_purchase", "createdAt": "…" }
 ```
 | kind | reason 문구 (디자인 원본) |
 |---|---|
-| `signup_gift` | 가입 선물 (✅ 가입할 때 10 크레딧 지급) |
+| `signup_gift` | 가입 선물 (가입할 때 10 크레딧) |
 | `ad_reward` | 광고 보상 |
-| `iap` | 크레딧 충전 · ₩1,100 |
+| `iap` | 크레딧 충전 · ₩1,100 / ₩5,500 / ₩11,000 |
 | `tape_purchase` | 3분 테이프 구매 / 3분 테이프 5개 구매 / 5분 테이프 구매 / 5분 테이프 5개 구매 |
 | `drawer_expand` | 서랍 넓히기 |
 | `gift_sent` | {이름}님에게 선물 |
 | `gift_received` | {이름}님이 선물 |
+| `refund` | 크레딧 충전 취소 · ₩1,100 (스토어 환불) |
+| `admin` | 개발용 지급 (개발 전용) |
 
 앱은 `delta > 0`이면 `+10`(잉크), 아니면 `−30`(회색)으로 그린다.
 
@@ -203,7 +233,7 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 | `FRIEND_NOT_FOUND` | 404 | 친구 목록에 없는 사람이에요 | | ✅ |
 | `CANNOT_BLOCK_SELF` | 400 | 나는 차단할 수 없어요 | | ✅ |
 | `BLOCK_NOT_FOUND` | 404 | 차단한 친구가 아니에요 | | ✅ |
-| `INSUFFICIENT_CREDITS` | 402 | 크레딧이 부족해요 | `need: number` (모자란 크레딧, charge 시트) | ✅ (구매 API는 ⏳) |
+| `INSUFFICIENT_CREDITS` | 402 | 크레딧이 부족해요 | `need: number` (모자란 크레딧, charge 시트) | ✅ |
 | `NO_TAPE_LEFT` | 409 | 테이프가 없어요. 상점에서 채워 주세요 | `tapeType` | ✅ |
 | `RECORDING_NOT_FOUND` | 404 | 녹음을 찾을 수 없어요 | | ✅ |
 | `RECORDING_NOT_READY` | 409 | 테이프 소리로 바꾸는 중이에요 | `status` | ✅ |
@@ -221,11 +251,16 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 | `LINK_TAKEN` | 409 | 이미 다른 분이 받은 테이프예요 | | ✅ |
 | `LINK_EXPIRED` | 410 | 링크가 만료됐어요 | | ✅ |
 | `LINK_OWN` | 409 | 내가 보낸 테이프예요 | `deliveryId`, `url` | ✅ |
-| `INVALID_GIFT_AMOUNT` | 400 | 선물은 10, 30, 50, 100 크레딧만 할 수 있어요 | | ⏳ |
-| `PRODUCT_NOT_FOUND` | 404 | 없는 상품이에요 | | ⏳ |
-| `AD_LIMIT_REACHED` | 429 | 오늘은 다 받았어요 | | ⏳ |
-| `RECEIPT_INVALID` | 400 | 결제를 확인하지 못했어요 | | ⏳ |
-| `RECEIPT_PENDING` | 409 | 결제를 확인하고 있어요. 잠시 후 다시 시도해 주세요 | | ⏳ |
+| `INVALID_GIFT_AMOUNT` | 400 | 선물은 10, 30, 50, 100 크레딧만 할 수 있어요 | | ✅ |
+| `GIFT_NOT_ALLOWED` | 403 | 선물할 수 없는 친구예요 | | ✅ |
+| `PRODUCT_NOT_FOUND` | 404 | 없는 상품이에요 | | ✅ |
+| `AD_LIMIT_REACHED` | 429 | 오늘은 다 받았어요 | (`POST /dev/credits`만) | ✅ |
+| `RECEIPT_INVALID` | 400 | 결제를 확인하지 못했어요 | | ✅ |
+| `RECEIPT_PENDING` | 409 | 결제를 확인하고 있어요. 잠시 후 다시 시도해 주세요 | | ✅ |
+| `RECEIPT_ALREADY_USED` | 409 | 이미 다른 계정에서 쓴 결제예요 | | ✅ |
+| `IAP_UNAVAILABLE` | 503 | 지금은 결제를 확인할 수 없어요. 잠시 후 다시 시도해 주세요 | (스토어 키가 없을 때) | ✅ |
+| `BILLING_NOTIFICATIONS_UNAVAILABLE` | 503 | 스토어 알림을 받을 수 없어요 | (서버 전용) | ✅ |
+| `INVALID_SIGNATURE` | 403 | 서명이 올바르지 않아요 | (SSV·스토어 알림·개발 저장소 URL) | ✅ |
 
 ---
 
@@ -273,18 +308,21 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 | ✅ | POST | `/share/{token}/web/audio` | 웹 재생 URL @공개 |
 | ✅ | GET | `/t/{token}` | 모바일 웹 페이지(HTML, `/api` 밖) @공개 |
 | ✅ | GET | `/.well-known/apple-app-site-association` · `/.well-known/assetlinks.json` | 유니버설 링크·앱 링크 (`/api` 밖, 환경 변수가 없으면 404) @공개 |
-| ⏳ | GET | `/wallet` | 잔액 + 오늘 남은 광고 |
-| ⏳ | GET | `/wallet/ledger` | 크레딧 내역 |
-| ⏳ | POST | `/wallet/gifts` | 크레딧 선물 🔑 |
-| ⏳ | GET | `/shop/products` | 상품 목록 |
-| ⏳ | POST | `/shop/purchases` | 테이프 사기 / 서랍 넓히기 🔑 |
-| ⏳ | POST | `/billing/iap` | 인앱 결제 영수증 확인 → 크레딧 충전 🔑 |
-| ⏳ | GET | `/billing/admob/ssv` | AdMob 광고 보상 콜백 @공개(서명 검증) |
-| ⏳ | POST | `/billing/apple/notifications` | App Store 서버 알림(환불) @공개(서명 검증) |
-| ⏳ | POST | `/billing/google/rtdn` | Google Play 실시간 알림(환불) @공개(Pub/Sub 인증) |
-| ⏳ | PUT | `/notifications/devices` | FCM 토큰 등록 |
-| ⏳ | DELETE | `/notifications/devices/{token}` | FCM 토큰 해제 |
+| ✅ | GET | `/wallet` | 잔액 + 오늘 남은 광고 |
+| ✅ | GET | `/wallet/ledger` | 크레딧 내역 |
+| ✅ | POST | `/wallet/gifts` | 크레딧 선물 🔑 |
+| ✅ | GET | `/shop/products` | 상품 목록 |
+| ✅ | POST | `/shop/purchases` | 테이프 사기 / 서랍 넓히기 🔑 |
+| ✅ | POST | `/billing/iap` | 인앱 결제 영수증 확인 → 크레딧 충전 🔑 |
+| ✅ | GET | `/billing/admob/ssv` | AdMob 광고 보상 콜백 @공개(서명 검증) |
+| ✅ | POST | `/billing/apple/notifications` | App Store 서버 알림(환불) @공개(서명 검증) |
+| ✅ | POST | `/billing/google/rtdn` | Google Play 실시간 알림(환불) @공개(Pub/Sub 인증) |
+| ✅ | PUT | `/notifications/devices` | FCM 토큰 등록 |
+| ✅ | DELETE | `/notifications/devices/{token}` | FCM 토큰 해제 |
 | ✅ | POST | `/dev/friends` | 개발 전용: 가짜 친구 만들기 (운영 404) |
+| ✅ | POST | `/dev/credits` | 개발 전용: 크레딧 받기 (광고·충전 흉내) (운영 404) |
+| ✅ | POST | `/dev/seed` | 개발 전용: 프로토타입 초기 데이터 (운영 404) |
+| ✅ | PUT·GET | `/dev-storage/{key}` | 개발 전용: 로컬 저장소 서명 URL (`STORAGE_DRIVER=local`, 운영 404) @공개(서명) |
 
 🔑 = `Idempotency-Key` 필수
 
@@ -344,8 +382,9 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 ### ✅ `POST /auth/apple` @공개
 `sign_in_with_apple`의 `identityToken`을 보낸다. 서버가 Apple 공개 키(JWKS)로 서명·`iss`·`aud`(번들 ID)·만료를 검사한다.
 ```json
-{ "identityToken": "eyJ…", "nonce": "원문 nonce (선택)" }
+{ "identityToken": "eyJ…", "authorizationCode": "c1a…", "nonce": "원문 nonce (선택)" }
 ```
+- `authorizationCode`: 선택이지만 **보내 주세요.** 서버가 Apple refresh token으로 바꿔 암호화해 두었다가, 탈퇴할 때 Apple 정책대로 토큰을 철회한다.
 - `nonce`: Apple에 `sha256(nonce)`를 넘겼다면 원문을 같이 보낸다(재전송 공격 방지, 권장).
 - Apple은 이름을 토큰에 넣지 않는다. 첫 로그인 때 SDK가 준 이름은 앱이 이름 정하기 화면에 미리 채운다.
 
@@ -373,7 +412,7 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 
 ### ✅ `POST /auth/logout` @공개
 이 기기의 refresh token을 지운다. access token은 만료(최대 1시간)까지 남으니 앱에서 지운다.
-⏳ 2단계부터는 로그아웃 전에 `DELETE /notifications/devices/{token}`도 부른다.
+로그아웃 전에 `DELETE /notifications/devices/{token}`도 부른다.
 ```json
 { "refreshToken": "…" }
 ```
@@ -430,7 +469,7 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 ### ✅ `POST /friends/{userId}/block`
 친구 시트 ⋯ > 차단(`shBlock`) → "차단하기". 친구가 아니어도(예: 링크로 받은 사람) 차단할 수 있다.
 - 내 친구 목록에서 빠지고 차단 목록에 들어간다. 이미 차단했으면 그대로 `200`
-- 차단한 사람이 보내는 테이프는 받지 않는다(보낸 쪽에는 정상 발송처럼 보이고, 내 서랍에는 들어오지 않는다). 선물은 ⏳ 3단계
+- 차단한 사람이 보내는 테이프는 받지 않는다(보낸 쪽에는 정상 발송처럼 보이고, 내 서랍에는 들어오지 않는다). 차단 관계에서는 선물도 주고받을 수 없다
 - 상대에게는 알리지 않는다
 
 응답 `200 BlockedUser` · 오류 `400 CANNOT_BLOCK_SELF`, `404 USER_NOT_FOUND`
@@ -450,10 +489,13 @@ Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **
 ```json
 {
   "friend": { "userId": "…", "name": "엄마", "starred": true, "lastAt": "…" },
-  "items": [ { "…": "ShelfItem", "groupName": "엄마 목소리" } ],
+  "items": [ { "…": "ShelfItem", "groupName": "엄마 목소리" }, { "…": "ShelfItem", "groupName": null } ],
   "unopenedCount": 1
 }
 ```
+- **`items` 순서 = "모두 재생" 대기열 순서**(프로토타입 `fromTapes`와 같다): 칸 순서대로 → 칸 안에서는 칸 안 순서대로 → 마지막에 "분류 안 함"의 **뜯은** 테이프를 그 순서대로
+- `groupName`: 칸 이름. **"분류 안 함"에 있으면 `null`**(앱이 "분류 안 함"으로 표시)
+- 안 뜯은 소포는 `items`에 없고 `unopenedCount`로만 센다
 부제: `받은 테이프 N개 · 뜯지 않은 테이프 M개`, 둘 다 0이면 "받은 테이프 없음". 오류 `404 FRIEND_NOT_FOUND`
 
 ---
@@ -522,17 +564,18 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 ## 10. deliveries
 
 ### ✅ `POST /deliveries` 🔑
-라벨 화면(`vLabel`)의 "보내기". 한 트랜잭션에서 **녹음 확인 → 친구·차단 확인 → 보유 테이프 1개 차감(3·5분만, 1분은 무료) → 테이프 생성 → 친구 `lastAt` 갱신**, 끝나면 받는 사람에게 푸시(⏳ 3단계, 지금은 호출 지점만).
+라벨 화면(`vLabel`)의 "보내기". 한 트랜잭션에서 **녹음 확인 → 친구·차단 확인 → 보유 테이프 1개 차감(3·5분만, 1분은 무료) → 테이프 생성 → 친구 `lastAt` 갱신**, 끝나면 받는 사람에게 푸시.
 
 친구에게:
 ```json
-{ "recordingId": "…", "recipientId": "friend userId", "tag": "birthday" }
+{ "recordingId": "…", "recipientId": "friend userId" }
 ```
 새 친구에게 링크로 (`vPick` > "새 친구에게 링크로 보내기"):
 ```json
-{ "recordingId": "…", "linkName": "유진", "tag": "birthday" }
+{ "recordingId": "…", "linkName": "유진" }
 ```
-- `recipientId`와 `linkName` 중 하나만. `linkName`은 라벨에 적힌 이름(1~8자). `tag`는 선택
+- `recipientId`와 `linkName` 중 하나만. `linkName`은 라벨에 적힌 이름(1~8자)
+- `tag`는 **선택**: 생략하거나 `null`이면 태그 없음(응답의 `tag`도 `null`)
 - 받는 사람 서랍이 꽉 차도 보낸다("분류 안 함" 맨 위에 들어가고, 받는 쪽 앱이 배너를 띄운다)
 - 받는 사람이 나를 차단했어도 `201`로 보인다(받는 쪽에는 들어가지 않는다)
 - 받는 사람이 나를 목록에서 뺐었다면 테이프가 도착하면서 다시 친구 목록에 나타난다
@@ -656,31 +699,32 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 
 ## 13. wallet
 
-### ⏳ `GET /wallet`
+### ✅ `GET /wallet`
 ```json
 { "credits": 120, "ads": { "rewardPerView": 10, "dailyLimit": 3, "remainingToday": 3 } }
 ```
-하루 기준은 한국 시간(Asia/Seoul) 자정.
+하루 기준은 한국 시간(Asia/Seoul) 자정. `remainingToday == 0`이면 광고를 띄우지 않는다("오늘은 다 받았어요").
 
-### ⏳ `GET /wallet/ledger?cursor=&limit=`
-크레딧 내역(`histOn`). 최신이 앞. `{ "items": [LedgerEntry], "nextCursor": null }`
+### ✅ `GET /wallet/ledger?cursor=&limit=`
+크레딧 내역(`histOn`). 최신이 앞. `{ "items": [LedgerEntry], "nextCursor": "…" | null }`
 
-### ⏳ `POST /wallet/gifts` 🔑
+### ✅ `POST /wallet/gifts` 🔑
 친구 시트 > 선물(`shGift`).
 ```json
 { "toUserId": "…", "amount": 30 }
 ```
-- `amount`: `10` · `30` · `50` · `100`만
-- 한 트랜잭션에서 내 원장 `−30 "{상대}님에게 선물"`, 상대 원장 `+30 "{나}님이 선물"`, 상대에게 푸시
+- `amount`: `10` · `30` · `50` · `100`만 (`400 INVALID_GIFT_AMOUNT`)
+- 한 트랜잭션에서 내 원장 `−30 "{상대}님에게 선물"`, 상대 원장 `+30 "{나}님이 선물"`, 끝나면 상대에게 선물 푸시
+- 친구에게만(`404 FRIEND_NOT_FOUND`). 어느 쪽이든 차단 관계면 `403 GIFT_NOT_ALLOWED`
 
 응답 `201 { "credits": 90, "entry": LedgerEntry }` → 토스트 "{이름}님에게 30 크레딧을 선물했어요"
-오류 `402 INSUFFICIENT_CREDITS`(+`need`), `400 INVALID_GIFT_AMOUNT`, `404 FRIEND_NOT_FOUND`
+오류 `402 INSUFFICIENT_CREDITS`(+`need`)
 
 ---
 
 ## 14. shop
 
-### ⏳ `GET /shop/products`
+### ✅ `GET /shop/products`
 가격은 서버가 정한다(앱은 표시만).
 ```json
 {
@@ -692,23 +736,28 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
   ],
   "drawer": [ { "id": "drawer_10", "name": "서랍 넓히기", "slots": 10, "price": 100 } ],
   "creditPacks": [
-    { "productId": "credits_100", "credits": 100, "priceLabel": "₩1,100" },
-    { "productId": "credits_550", "credits": 550, "priceLabel": "₩5,500" },
-    { "productId": "credits_1200", "credits": 1200, "priceLabel": "₩11,000" }
+    { "productId": "credits_100", "credits": 100, "priceKrw": 1100, "priceLabel": "₩1,100" },
+    { "productId": "credits_550", "credits": 550, "priceKrw": 5500, "priceLabel": "₩5,500" },
+    { "productId": "credits_1200", "credits": 1200, "priceKrw": 11000, "priceLabel": "₩11,000" }
   ],
   "giftAmounts": [10, 30, 50, 100]
 }
 ```
-`creditPacks[].productId`는 App Store / Play Console의 상품 ID와 같다. 실제 표시 가격은 스토어 SDK 값을 우선한다.
+`creditPacks[].productId`는 App Store Connect / Play Console의 **소비성** 상품 ID와 같게 등록한다. 실제 표시 가격은 스토어 SDK 값을 우선한다.
 
-### ⏳ `POST /shop/purchases` 🔑
-구매 확인 시트(`shBuy`)의 "사기".
+### ✅ `POST /shop/purchases` 🔑
+구매 확인 시트(`shBuy`)의 "사기". 한 트랜잭션에서 크레딧 조건부 차감 → 테이프 추가 또는 서랍 +10.
 ```json
 { "productId": "tape3_5" }
 ```
 응답 `201`
 ```json
-{ "credits": 0, "tapes": [ { "tapeType": 1, "qty": null }, { "tapeType": 3, "qty": 7 }, { "tapeType": 5, "qty": 0 } ], "drawer": { "stored": 11, "cap": 12, "full": false }, "entry": LedgerEntry }
+{
+  "credits": 0,
+  "tapes": [ { "tapeType": 1, "qty": null }, { "tapeType": 3, "qty": 7 }, { "tapeType": 5, "qty": 0 } ],
+  "drawer": { "stored": 11, "cap": 12, "full": false, "unopenedCount": 0 },
+  "entry": LedgerEntry
+}
 ```
 토스트: 테이프 "보유 테이프에 넣었어요" / 서랍 "서랍에 10개 더 보관할 수 있어요".
 오류 `402 INSUFFICIENT_CREDITS` + `need` → 충전 시트(`shCharge`, "N 크레딧이 더 필요해요"), `404 PRODUCT_NOT_FOUND`
@@ -717,46 +766,77 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 
 ## 15. billing
 
-### ⏳ `POST /billing/iap` 🔑
-스토어 결제가 끝나면(`shPay`) 영수증을 보낸다. 서버가 스토어에 검증하고 크레딧을 준다. 같은 거래를 두 번 보내도 한 번만 지급한다(`transactionId` UNIQUE).
+### ✅ `POST /billing/iap` 🔑
+스토어 결제가 끝나면(`shPay`) 영수증을 보낸다. 서버가 스토어로 검증하고 크레딧을 준다.
 ```json
-{ "store": "app_store", "productId": "credits_100", "transactionId": "2000000…", "verificationData": "JWS 또는 purchaseToken" }
+{ "store": "app_store", "productId": "credits_100", "verificationData": "JWS 또는 purchaseToken" }
 ```
-- iOS: StoreKit 2 `jwsRepresentation` · Android: `purchaseToken`
-- 응답 `200 { "credits": 220, "granted": 100, "entry": LedgerEntry }` → 앱은 스토어 거래를 `completePurchase`
-- 오류 `400 RECEIPT_INVALID` → 결제 실패 시트(`shPayFail`), `409 RECEIPT_PENDING`
+- iOS: StoreKit 2 `jwsRepresentation`. 서버가 Apple 인증서 체인으로 서명·번들 ID·환경을 확인한다(샌드박스 결제도 받는다. 앱 심사용)
+- Android: `purchaseToken`. 서버가 Google Play Developer API(`purchases.products.get`)로 확인하고, 지급 후 **서버가 consume**한다(앱은 consume하지 않는다)
+- `transactionId`(선택)는 참고용이다. 서버는 스토어에서 확인한 거래 id를 쓴다
+- 응답 `200 { "credits": 220, "granted": 100, "alreadyProcessed": false, "entry": LedgerEntry }` → iOS는 `finishTransaction`
+- **같은 결제를 다시 보내면** 지급 없이 `200 { "granted": 0, "alreadyProcessed": true, … }` (앱이 재시작 후 다시 보내도 안전하다)
+- 오류 `400 RECEIPT_INVALID` → 결제 실패 시트(`shPayFail`), `409 RECEIPT_PENDING`(Play 대기 결제), `409 RECEIPT_ALREADY_USED`(다른 계정이 이미 쓴 결제), `503 IAP_UNAVAILABLE`(서버에 스토어 키가 없음 — 개발에서는 `POST /dev/credits`)
 - 결제 취소는 스토어 SDK에서 끝난다(서버 호출 없음, 토스트만)
 
-### ⏳ `GET /billing/admob/ssv` @공개
-AdMob 보상형 광고 서버 측 확인(SSV) 콜백. Google 공개 키로 서명을 검증한 뒤 `custom_data`(= 사용자 id)에게 10 크레딧을 준다(하루 3회, `transaction_id` UNIQUE).
-**앱 흐름**: 광고를 띄울 때 `ServerSideVerificationOptions(userId: me.id)`를 넣고 → 보상 콜백을 받으면 `GET /wallet`을 1초 간격으로 최대 5번 불러 크레딧이 늘었는지 확인한다(`remainingToday` 감소). 끝까지 안 보고 닫으면 보상이 없다("끝까지 봐야 받을 수 있어요"). 오늘 다 받았으면 광고를 띄우지 않는다(`remainingToday == 0` → "오늘은 다 받았어요").
+### ✅ `GET /billing/admob/ssv` @공개
+AdMob 보상형 광고 서버 측 확인(SSV) 콜백. **Google이 부른다.** Google 공개 키(ECDSA)로 서명을 검증하고 `user_id`에게 10 크레딧(원장 "광고 보상")을 준다. 같은 `transaction_id`는 한 번만, 한국 시간 하루 3회까지(넘으면 조용히 무시). 서명이 틀리면 `403 INVALID_SIGNATURE`.
+**앱 흐름**: 보상형 광고를 띄울 때 `ServerSideVerificationOptions(userId: me.id)`를 넣는다 → 보상 콜백을 받으면 `GET /wallet`을 1초 간격으로 최대 5번 불러 크레딧이 늘었는지(`remainingToday` 감소) 확인한다. 끝까지 안 보고 닫으면 보상이 없다("끝까지 봐야 받을 수 있어요"). 개발에서는 `POST /dev/credits { "type": "ad" }`.
 
-### ⏳ `POST /billing/apple/notifications`, `POST /billing/google/rtdn` @공개
-환불 알림. 환불된 충전만큼 크레딧을 회수한다(잔액이 모자라면 0까지, 원장 기록).
+### ✅ `POST /billing/apple/notifications`, `POST /billing/google/rtdn` @공개 (서버 전용)
+스토어 서버 알림. 모두 `billing_events`에 기록한다.
+- App Store Server Notifications V2: `{ "signedPayload" }`를 Apple 인증서로 검증. `REFUND`·`REVOKE`면 환불 처리
+- Google Play RTDN(Cloud Pub/Sub 푸시): `Authorization: Bearer <OIDC 토큰>`을 `GOOGLE_RTDN_AUDIENCE`로 검증. `voidedPurchaseNotification`이면 환불 처리
+
+**환불 정책**: 환불된 충전만큼 크레딧을 **잔액 안에서** 회수한다(원장 `refund` "크레딧 충전 취소 · ₩1,100"). 이미 써서 잔액이 모자라면 0까지만 회수하고(잔액은 음수가 되지 않는다), 못 회수한 양은 `iap_purchases.unrecovered_credits`에 남긴다. 산 테이프·서랍·선물은 되돌리지 않는다. 반복 악용은 운영자가 기록을 보고 판단한다.
 
 ---
 
 ## 16. notifications
 
-### ⏳ `PUT /notifications/devices`
-로그인 후, 그리고 FCM 토큰이 바뀔 때마다. `{ "token": "FCM 토큰", "platform": "ios" }` → `204`
+### ✅ `PUT /notifications/devices`
+로그인 후, 그리고 FCM 토큰이 바뀔 때마다. `{ "token": "FCM 토큰", "platform": "ios" | "android" }` → `204`. 같은 토큰을 다른 계정이 등록하면 그 계정으로 옮긴다.
 
-### ⏳ `DELETE /notifications/devices/{token}`
+### ✅ `DELETE /notifications/devices/{token}`
 로그아웃 전에. `204`
 
-### 푸시 모양 ⏳
-`notificationsEnabled: false`면 보내지 않는다.
+### 푸시 모양 ✅
+FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`면 보내지 않는다. 앱이 지워져 무효가 된 토큰은 서버가 지운다. 서버에 FCM 키가 없으면(개발) 보내지 않고 로그만 남긴다.
 | 종류 | title | body | data |
 |---|---|---|---|
-| 테이프 도착 | `{보낸 사람}님이 테이프를 보냈어요` | `{3분} 테이프가 도착했어요. 뜯어서 들어보세요` | `{ "type": "tape", "deliveryId": "…" }` → 서랍 + 소포 화면 |
+| 테이프 도착 | `{보낸 사람}님이 테이프를 보냈어요` | `{3}분 테이프가 도착했어요. 뜯어서 들어보세요` | `{ "type": "tape", "deliveryId": "…" }` → 서랍 + 소포 화면 |
 | 크레딧 선물 | `{보낸 사람}님이 크레딧을 선물했어요` | `{30} 크레딧을 받았어요` | `{ "type": "gift" }` → 크레딧 내역 |
-| 링크 테이프를 받음 | `{이름}님이 테이프를 받았어요` | `이제 서로 친구예요` | `{ "type": "claimed", "deliveryId": "…" }` |
+| 링크 테이프를 받음 | `{이름}님이 테이프를 받았어요` | `이제 서로 친구예요` | `{ "type": "claimed", "deliveryId": "…" }` → 보낸 테이프 상세 |
 
 ---
 
 ## 17. dev (개발 전용)
 
-`NODE_ENV=production`이면 전부 `404`. 앱 개발과 e2e 테스트에서 2단계 기능(보내기·링크 받기) 없이 데이터를 만들 때 쓴다.
+`NODE_ENV=production`이면 전부 `404`. 앱 개발과 e2e 테스트용.
+
+### ✅ `POST /dev/seed`
+로그인한 계정을 **프로토타입 초기 데이터**로 만든다(기존 테이프·칸·친구·차단·내역·보유 테이프는 지운다). 응답 `200 { "friends": 6, "stored": 10, "groups": 3, "sent": 4, "credits": 120 }`
+
+| 항목 | 내용 |
+|---|---|
+| 친구 | 지현★ 엄마★ 민수 하늘 박과장님 은비 (`lastAt`은 프로토타입 날짜) |
+| 분류 안 함 | 지현 3분(안 뜯음), 하늘 1분(안 뜯음, 링크로 받음) |
+| 칸 | 2026 생일(엄마 5분, 민수 1분, 수아 3분, 할머니 1분) · 승진 축하(박과장님 3분, 은비 1분) · 엄마 목소리(엄마 5분, 엄마 3분) |
+| 보낸 기록 | 유진(링크 대기) · 엄마(들음) · 민수(안 뜯음) · 박과장님(들음) |
+| 지갑 | 크레딧 120, 내역 5줄(가입 선물 +10, 지현님이 선물 +30, 크레딧 충전 · ₩1,100 +100, 3분 테이프 구매 −30, 광고 보상 +10), 3분 테이프 2개, 서랍 12 |
+| 오디오 | 생성한 사인파 톤 WAV(3~6초, `audio/wav`) |
+
+### ✅ `POST /dev/credits`
+```json
+{ "type": "ad" }
+{ "type": "charge", "productId": "credits_100" }
+{ "type": "admin", "amount": 500 }
+```
+- `ad`: 실제 광고 보상과 같은 경로(원장 "광고 보상", 하루 3회. 넘으면 `429 AD_LIMIT_REACHED`)
+- `charge`: 충전 흉내(원장 "크레딧 충전 · ₩1,100")
+- `admin`: 임의 금액(원장 "개발용 지급")
+
+응답 `200` = `GET /wallet`과 같다.
 
 ### ✅ `POST /dev/friends`
 서로 친구 관계를 만든다(`lastAt`은 지금).
@@ -769,7 +849,8 @@ AdMob 보상형 광고 서버 측 확인(SSV) 콜백. Google 공개 키로 서�
 ```
 `name`과 `userId` 중 하나만. 응답 `201 Friend`
 
-프로토타입 초기 데이터 만들기 예: `POST /auth/dev {"key":"minkyung","name":"민경"}` → `POST /dev/friends`를 `지현(★)`, `엄마(★)`, `민수`, `하늘`, `박과장님`, `은비`로 6번.
+### ✅ `PUT /dev-storage/{key}` · `GET /dev-storage/{key}` @공개(HMAC 서명)
+`STORAGE_DRIVER=local`일 때 `upload.url` / `preview.url` / 재생 `url`이 가리키는 곳. 앱이 직접 만들 일은 없다. 서명(`sig`)·만료(`exp`)·Content-Type(`ct`)이 맞지 않으면 `403 INVALID_SIGNATURE`. GET은 Range 요청(206)을 지원한다.
 
 ---
 
@@ -781,7 +862,7 @@ AdMob 보상형 광고 서버 측 확인(SSV) 콜백. Google 공개 키로 서�
 | 온보딩 `auOnb` | 없음 |
 | 로그인 `auLogin` | `POST /auth/kakao` · `POST /auth/apple` (개발: `POST /auth/dev`) |
 | 이름 정하기 `auName` | `PATCH /users/me { name }` (`suggestedName`으로 미리 채움) |
-| 마이크·알림 권한 `auMic` `auNoti` | 알림 허용 시 `PUT /notifications/devices` ⏳, 거부/나중에면 `PATCH /users/me { notificationsEnabled: false }` |
+| 마이크·알림 권한 `auMic` `auNoti` | 알림 허용 시 `PUT /notifications/devices`, 거부/나중에면 `PATCH /users/me { notificationsEnabled: false }` |
 | 녹음 대기 `vIdle` | `GET /users/me` (`tapes` → 개수 알약, 0개면 상점으로) |
 | 탭바 서랍 레드 점 `hasNew` | `GET /users/me` → `drawer.unopenedCount > 0` |
 | 녹음 확인 `vConfirm` `convSlowOn` `convFailOn` | `POST /recordings` → PUT 업로드 → `POST /recordings/{id}/complete` → `GET /recordings/{id}` 1초 폴링 → 실패 시 `POST /recordings/{id}/retry` |
@@ -792,19 +873,19 @@ AdMob 보상형 광고 서버 측 확인(SSV) 콜백. Google 공개 키로 서�
 | 재생 `vPlay` `vLoadingOn` `vErrorOn` | `GET /deliveries/{id}/audio` |
 | 새 테이프 푸시 `pushOn` | `GET /deliveries/{id}` |
 | 친구 화면 `fvOn` | `GET /friends/{userId}/tapes` |
-| 상점 `vShop` | `GET /shop/products`, `GET /wallet`, `GET /users/me` ⏳ |
-| 구매 `shBuy` / 충전 `shCharge` | `POST /shop/purchases` 🔑 → `402 need` → 충전 시트 ⏳ |
-| 결제 `shPay` `shPayFail` | 스토어 SDK → `POST /billing/iap` 🔑 ⏳ |
-| 광고 `shAd` `shAdFail` | AdMob SDK(SSV) → `GET /wallet` 폴링 ⏳ |
-| 선물 `shGift` · 선물 받음 푸시 | `POST /wallet/gifts` 🔑 ⏳ |
-| 크레딧 내역 `histOn` | `GET /wallet/ledger` ⏳ |
+| 상점 `vShop` | `GET /shop/products`, `GET /wallet`, `GET /users/me` |
+| 구매 `shBuy` / 충전 `shCharge` | `POST /shop/purchases` 🔑 → `402 need` → 충전 시트 |
+| 결제 `shPay` `shPayFail` | 스토어 SDK → `POST /billing/iap` 🔑 |
+| 광고 `shAd` `shAdFail` | AdMob SDK(SSV) → `GET /wallet` 폴링 |
+| 선물 `shGift` · 선물 받음 푸시 | `POST /wallet/gifts` 🔑 |
+| 크레딧 내역 `histOn` | `GET /wallet/ledger` |
 | 마이 `vMy` | `GET /users/me`, `GET /friends`, `GET /deliveries/sent`, 이름 수정 `PATCH /users/me` |
 | 친구 시트 `shFriend` | 즐겨찾기 `PATCH /friends/{id}`, 목록에서 빼기 `DELETE /friends/{id}`, 차단 `shBlock` → `POST /friends/{id}/block` |
 | 보낸 테이프 상세 `shSentDetail` | `GET /deliveries/sent/{id}`, 링크 다시 공유하기 `POST /deliveries/sent/{id}/share` |
 | 설정 > 알림 | `PATCH /users/me { notificationsEnabled }` |
 | 설정 > 연결된 계정 | `GET /users/me` → `providers` |
 | 설정 > 차단한 친구 `shBlocked` | `GET /friends/blocks`, 해제 `DELETE /friends/{id}/block` |
-| 설정 > 로그아웃 | `DELETE /notifications/devices/{token}` ⏳ → `POST /auth/logout` |
+| 설정 > 로그아웃 | `DELETE /notifications/devices/{token}` → `POST /auth/logout` |
 | 설정 > 회원 탈퇴 `shWithdraw` | `DELETE /users/me` |
 | 설정 > 앱 버전 | `GET /app-version` (`latestVersion`) |
 | 링크 열기 `leOn`(taken/expired/own) · 앱에서 링크 `viaLink` | `GET /share/{token}` → `POST /share/{token}/claim` 🔑 |
@@ -827,10 +908,13 @@ AdMob 보상형 광고 서버 측 확인(SSV) 콜백. Google 공개 키로 서�
 | 받은 테이프(서랍, 칸)와 그 녹음 파일 | 삭제 | ✅ |
 | 보낸 테이프 | **받은 사람의 서랍에는 남긴다**(받은 사람의 것). 보낸 사람은 `sender.userId: null` + 보낼 때 이름으로 보인다. 아직 아무도 안 받은 링크 테이프는 파일과 함께 삭제 | ✅ |
 | 보내지 않은 녹음 | 파일과 함께 삭제 | ✅ |
-| FCM 토큰 | 삭제 | ⏳ 3단계 |
-| 결제 기록(`iap_purchases`) | 전자상거래법상 5년 보관: `user_id`만 NULL로 끊고 남긴다 | ⏳ 3단계 |
-| Apple 로그인 | Apple 정책에 따라 토큰 철회(`/auth/revoke`) 필요 → 탈퇴 전에 앱이 authorization code를 받아 보내는 방식으로 추가 예정 | ⏳ |
-| 카카오 로그인 | 카카오 연결 끊기(`/v1/user/unlink`, 어드민 키) | ⏳ |
+| FCM 토큰 | 삭제 | ✅ |
+| 결제 기록(`iap_purchases`) | 전자상거래법상 5년 보관: `user_id`만 NULL로 끊고 남긴다 | ✅ |
+| 광고 보상 기록 | 삭제 | ✅ |
+| Apple 로그인 | Apple 정책에 따라 토큰 철회(`appleid.apple.com/auth/revoke`, client_secret은 .p8로 서명한 JWT). 로그인 때 받은 `authorizationCode`로 얻어 둔 refresh token을 쓴다. 키나 토큰이 없으면 건너뛰고 로그만 | ✅ |
+| 카카오 로그인 | 카카오 연결 끊기(`/v1/user/unlink`, 어드민 키). 키가 없으면 건너뛰고 로그만 | ✅ |
+
+소셜 연결 해제가 실패해도 탈퇴는 진행된다(이미 데이터를 지운 뒤에 부른다).
 
 ---
 
@@ -839,4 +923,5 @@ AdMob 보상형 광고 서버 측 확인(SSV) 콜백. Google 공개 키로 서�
 | 날짜 | 내용 |
 |---|---|
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |
+| 2026-09-25 | 3단계: wallet(잔액·내역·선물), shop(상품·구매), billing(App Store·Google Play 결제 확인, AdMob SSV, 환불 알림), notifications(FCM 기기 등록·푸시) 구현. 로컬 개발 섹션(0장), `STORAGE_DRIVER=local`·`FFMPEG_MODE=passthrough`, `POST /dev/seed`·`POST /dev/credits`·`/dev-storage/*` 추가. 공개 엔드포인트 요청 횟수 제한. 탈퇴 시 카카오 연결 끊기·Apple 토큰 철회(`POST /auth/apple`에 `authorizationCode` 추가). 오류 코드 `GIFT_NOT_ALLOWED`·`RECEIPT_ALREADY_USED`·`IAP_UNAVAILABLE`·`BILLING_NOTIFICATIONS_UNAVAILABLE`·`INVALID_SIGNATURE` 추가. 앱 요청: 친구 테이프 `items` 순서 명시, 분류 안 함은 `groupName: null`, `POST /deliveries`의 `tag` 선택(null 허용) |
 | 2026-09-25 | 2단계: recordings, deliveries, shelf, share(+웹 페이지 `/t/{token}`, `.well-known`), 친구 테이프 구현. `Me.drawer.unopenedCount`·`GET /shelf`의 `unopenedCount` 추가(앱 요청). 변환 후 실제 길이로 `durationMs` 갱신 명시(앱 요청). `GET /friends`는 차단한 사람 제외 명시(앱 요청). `GET /share/{token}`에 `state`·`deliveryId`, 오류 코드 `TAPE_NOT_OPENED`·`UPLOAD_NOT_FOUND`·`RECORDING_TOO_LARGE` 추가. `PATCH /shelf/items`의 `groupId`·`afterId` 필수 |
