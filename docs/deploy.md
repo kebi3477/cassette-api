@@ -229,10 +229,12 @@ docker compose --env-file .env.production logs -f api     # "Migration ... has b
 | 콘솔 | 설정 | 값 |
 |---|---|---|
 | App Store Connect | 앱 → 앱 정보 → App Store 서버 알림 (**버전 2**), 프로덕션·샌드박스 둘 다 | `https://api.<도메인>/api/billing/apple/notifications` |
-| App Store Connect | 앱 내 구입 → 소비성 상품 | `credits_100`, `credits_550`, `credits_1200` |
+| App Store Connect | 앱 내 구입 → 소비성 상품 | `tapeletter.credits_100`, `tapeletter.credits_550`, `tapeletter.credits_1200` |
 | Google Play Console | 수익 창출 설정 → 실시간 개발자 알림 → Pub/Sub 주제 | 주제에 `google-play-developer-notifications@system.gserviceaccount.com` 게시자 권한 |
 | Google Cloud Pub/Sub | 위 주제의 **푸시 구독** → 엔드포인트 · 인증 사용(서비스 계정) · audience | `https://api.<도메인>/api/billing/google/rtdn` · audience = `GOOGLE_RTDN_AUDIENCE` |
-| Google Play Console | 인앱 상품 (관리형, 소비성) | `credits_100`, `credits_550`, `credits_1200` |
+| Google Play Console | 인앱 상품 (관리형, 소비성) | `tapeletter.credits_100`, `tapeletter.credits_550`, `tapeletter.credits_1200` |
+
+상품 ID는 App Store·Google Play 모두 `tapeletter.credits_100`·`tapeletter.credits_550`·`tapeletter.credits_1200`으로 같게 만든다(서버 `src/shop/products.ts`와 같아야 결제를 확인한다). 옛 ID `credits_*`는 같은 Apple 팀의 다른 앱이 쓰고 있어 쓸 수 없다.
 | AdMob | 보상형 광고 단위 → 서버 측 확인(SSV) → 콜백 URL | `https://api.<도메인>/api/billing/admob/ssv` |
 | Firebase | 프로젝트 설정 → 클라우드 메시징 → Apple 앱 구성 | APNs 인증 키(.p8) 업로드 (iOS 푸시) |
 | Apple Developer | 번들 ID → Associated Domains / 앱 Entitlements | `applinks:<도메인>` (링크 `/t/*`) |

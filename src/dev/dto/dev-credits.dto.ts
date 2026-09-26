@@ -5,7 +5,7 @@ export class DevCreditsDto {
   @IsIn(['ad', 'charge', 'admin'])
   type: 'ad' | 'charge' | 'admin';
 
-  /** type=charge: credits_100 · credits_550 · credits_1200 */
+  /** type=charge: tapeletter.credits_100 · tapeletter.credits_550 · tapeletter.credits_1200 */
   @IsOptional()
   @IsString()
   productId?: string;

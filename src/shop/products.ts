@@ -17,7 +17,10 @@ export interface DrawerProduct {
 }
 
 export interface CreditPack {
-  /** App Store Connect / Play Console 상품 ID (소비성) */
+  /**
+   * App Store Connect / Play Console 상품 ID (소비성). API 응답과 스토어 상품 ID로 함께 쓴다.
+   * 같은 개발자 팀의 다른 앱과 겹치지 않게 `tapeletter.` 접두어를 붙인다 (Play 규칙: 소문자·숫자·_·.)
+   */
   productId: string;
   credits: number;
   priceKrw: number;
@@ -37,19 +40,19 @@ export const DRAWER_PRODUCTS: DrawerProduct[] = [
 
 export const CREDIT_PACKS: CreditPack[] = [
   {
-    productId: 'credits_100',
+    productId: 'tapeletter.credits_100',
     credits: 100,
     priceKrw: 1100,
     priceLabel: '₩1,100',
   },
   {
-    productId: 'credits_550',
+    productId: 'tapeletter.credits_550',
     credits: 550,
     priceKrw: 5500,
     priceLabel: '₩5,500',
   },
   {
-    productId: 'credits_1200',
+    productId: 'tapeletter.credits_1200',
     credits: 1200,
     priceKrw: 11000,
     priceLabel: '₩11,000',

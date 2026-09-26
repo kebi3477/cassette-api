@@ -806,9 +806,9 @@ Apple 심사 가이드라인 1.2(사용자 생성 콘텐츠: 신고·차단·연
   ],
   "drawer": [ { "id": "drawer_10", "name": "서랍 넓히기", "slots": 10, "price": 100 } ],
   "creditPacks": [
-    { "productId": "credits_100", "credits": 100, "priceKrw": 1100, "priceLabel": "₩1,100" },
-    { "productId": "credits_550", "credits": 550, "priceKrw": 5500, "priceLabel": "₩5,500" },
-    { "productId": "credits_1200", "credits": 1200, "priceKrw": 11000, "priceLabel": "₩11,000" }
+    { "productId": "tapeletter.credits_100", "credits": 100, "priceKrw": 1100, "priceLabel": "₩1,100" },
+    { "productId": "tapeletter.credits_550", "credits": 550, "priceKrw": 5500, "priceLabel": "₩5,500" },
+    { "productId": "tapeletter.credits_1200", "credits": 1200, "priceKrw": 11000, "priceLabel": "₩11,000" }
   ],
   "giftAmounts": [10, 30, 50, 100]
 }
@@ -839,12 +839,12 @@ Apple 심사 가이드라인 1.2(사용자 생성 콘텐츠: 신고·차단·연
 ### ✅ `POST /billing/iap` 🔑
 스토어 결제가 끝나면(`shPay`) 영수증을 보낸다. 서버가 스토어로 검증하고 크레딧을 준다.
 ```json
-{ "store": "app_store", "productId": "credits_100", "verificationData": "JWS 또는 purchaseToken" }
+{ "store": "app_store", "productId": "tapeletter.credits_100", "verificationData": "JWS 또는 purchaseToken" }
 ```
 | 필드 | 필수 | 값 |
 |---|---|---|
 | `store` | O | **`app_store`**(iOS) 또는 **`play`**(Android) 둘 중 하나. 다른 값(`google_play` 등)이면 `400 VALIDATION_FAILED` (`fields: ["store"]`) |
-| `productId` | O | `credits_100` · `credits_550` · `credits_1200`. 모르는 값이면 `404 PRODUCT_NOT_FOUND` |
+| `productId` | O | `tapeletter.credits_100` · `tapeletter.credits_550` · `tapeletter.credits_1200`. 모르는 값이면 `404 PRODUCT_NOT_FOUND` |
 | `verificationData` | O | iOS: `jwsRepresentation` · Android: `purchaseToken` |
 | `transactionId` | | 참고용 |
 
@@ -906,7 +906,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). 문구의 이름은 **알림�
 ### ✅ `POST /dev/credits`
 ```json
 { "type": "ad" }
-{ "type": "charge", "productId": "credits_100" }
+{ "type": "charge", "productId": "tapeletter.credits_100" }
 { "type": "admin", "amount": 500 }
 ```
 - `ad`: 실제 광고 보상과 같은 경로(원장 "광고 보상", 하루 3회. 넘으면 `429 AD_LIMIT_REACHED`)
@@ -1002,6 +1002,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). 문구의 이름은 **알림�
 
 | 날짜 | 내용 |
 |---|---|
+| 2026-09-27 | 크레딧 팩 상품 ID 변경: `credits_100`·`credits_550`·`credits_1200` → **`tapeletter.credits_100`·`tapeletter.credits_550`·`tapeletter.credits_1200`**(같은 Apple 개발자 팀의 다른 앱이 옛 ID를 이미 써서 새 앱에 만들 수 없었다). `GET /shop/products`의 `creditPacks[].productId`, `POST /billing/iap`·`POST /dev/credits`의 `productId`가 모두 새 ID다. 옛 ID는 `404 PRODUCT_NOT_FOUND` |
 | 2026-09-26 | 서비스 이름 변경 **cassette → tapeletter**: 앱에서 열기 스킴 `tapeletter://t/{token}`(Android intent의 `scheme=tapeletter`), 웹 페이지 워드마크·`og:site_name`·`<title>`, Android 스토어 기본값 `com.kebi.tapeletter`, 도메인 예시 `tapeletter.lab241.com`. 약관 1.3·처리방침 1.4. API 경로·필드는 그대로 |
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |
 | 2026-09-26 | 친구 별명: `PATCH /friends/{userId}`에 `nickname`(최대 10자, 빈 값·null이면 삭제), Friend·BlockedUser·ShelfItem.sender·SentTape.recipient·링크 미리보기 sender에 `nickname` 추가, 오류 코드 `INVALID_NICKNAME`, 푸시는 받는 사람의 별명, 원장 문구는 원래 이름. 개인정보 처리방침 1.3 |

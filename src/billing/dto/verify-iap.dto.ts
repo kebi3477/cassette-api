@@ -11,7 +11,7 @@ export class VerifyIapDto {
   @IsIn(IAP_STORES)
   store: IapStore;
 
-  /** credits_100 · credits_550 · credits_1200 */
+  /** tapeletter.credits_100 · tapeletter.credits_550 · tapeletter.credits_1200 */
   @IsString()
   @MaxLength(64)
   productId: string;

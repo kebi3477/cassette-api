@@ -46,10 +46,10 @@ describe('billing (e2e)', () => {
       const u = await devLogin(app, '결제');
       const res = await iap(u, {
         store: 'app_store',
-        productId: 'credits_100',
+        productId: 'tapeletter.credits_100',
         verificationData: JSON.stringify({
           transactionId: 't-0',
-          productId: 'credits_100',
+          productId: 'tapeletter.credits_100',
         }),
       }).expect(503);
       expect(res.body.code).toBe('IAP_UNAVAILABLE');
@@ -59,11 +59,11 @@ describe('billing (e2e)', () => {
       const u = await devLogin(app, '애플');
       const jws = JSON.stringify({
         transactionId: `apple-${Date.now()}`,
-        productId: 'credits_550',
+        productId: 'tapeletter.credits_550',
       });
       const first = await iap(u, {
         store: 'app_store',
-        productId: 'credits_550',
+        productId: 'tapeletter.credits_550',
         verificationData: jws,
       }).expect(200);
       expect(first.body).toMatchObject({
@@ -74,7 +74,7 @@ describe('billing (e2e)', () => {
       });
       const again = await iap(u, {
         store: 'app_store',
-        productId: 'credits_550',
+        productId: 'tapeletter.credits_550',
         verificationData: jws,
       }).expect(200);
       expect(again.body).toMatchObject({
@@ -86,7 +86,7 @@ describe('billing (e2e)', () => {
       const other = await devLogin(app, '남');
       const stolen = await iap(other, {
         store: 'app_store',
-        productId: 'credits_550',
+        productId: 'tapeletter.credits_550',
         verificationData: jws,
       }).expect(409);
       expect(stolen.body.code).toBe('RECEIPT_ALREADY_USED');
@@ -97,13 +97,13 @@ describe('billing (e2e)', () => {
       const u = await devLogin(app, '동시결제');
       const jws = JSON.stringify({
         transactionId: `apple-c-${Date.now()}`,
-        productId: 'credits_100',
+        productId: 'tapeletter.credits_100',
       });
       const results = await Promise.all(
         Array.from({ length: 4 }, () =>
           iap(u, {
             store: 'app_store',
-            productId: 'credits_100',
+            productId: 'tapeletter.credits_100',
             verificationData: jws,
           }),
         ),
@@ -117,19 +117,19 @@ describe('billing (e2e)', () => {
       const u = await devLogin(app, '이상');
       const mismatch = await iap(u, {
         store: 'app_store',
-        productId: 'credits_1200',
+        productId: 'tapeletter.credits_1200',
         verificationData: JSON.stringify({
           transactionId: 'x1',
-          productId: 'credits_100',
+          productId: 'tapeletter.credits_100',
         }),
       }).expect(400);
       expect(mismatch.body.code).toBe('RECEIPT_INVALID');
       await iap(u, {
         store: 'app_store',
-        productId: 'credits_100',
+        productId: 'tapeletter.credits_100',
         verificationData: JSON.stringify({
           transactionId: 'x2',
-          productId: 'credits_100',
+          productId: 'tapeletter.credits_100',
           revoked: true,
         }),
       }).expect(400);
@@ -144,7 +144,7 @@ describe('billing (e2e)', () => {
       });
       const pending = await iap(u, {
         store: 'play',
-        productId: 'credits_100',
+        productId: 'tapeletter.credits_100',
         verificationData: 'tok-pending',
       }).expect(409);
       expect(pending.body.code).toBe('RECEIPT_PENDING');
@@ -156,7 +156,7 @@ describe('billing (e2e)', () => {
       });
       const ok = await iap(u, {
         store: 'play',
-        productId: 'credits_100',
+        productId: 'tapeletter.credits_100',
         verificationData: 'tok-ok',
       }).expect(200);
       expect(ok.body.granted).toBe(100);
@@ -168,10 +168,10 @@ describe('billing (e2e)', () => {
       const tx = `apple-r-${Date.now()}`;
       await iap(u, {
         store: 'app_store',
-        productId: 'credits_100',
+        productId: 'tapeletter.credits_100',
         verificationData: JSON.stringify({
           transactionId: tx,
-          productId: 'credits_100',
+          productId: 'tapeletter.credits_100',
         }),
       }).expect(200); // 110
       await request(server())
@@ -189,7 +189,7 @@ describe('billing (e2e)', () => {
             subtype: null,
             transaction: {
               transactionId: tx,
-              productId: 'credits_100',
+              productId: 'tapeletter.credits_100',
               environment: 'Sandbox',
               revoked: true,
             },
@@ -216,7 +216,7 @@ describe('billing (e2e)', () => {
             subtype: null,
             transaction: {
               transactionId: tx,
-              productId: 'credits_100',
+              productId: 'tapeletter.credits_100',
               environment: 'Sandbox',
               revoked: true,
             },
@@ -239,7 +239,7 @@ describe('billing (e2e)', () => {
       });
       await iap(u, {
         store: 'play',
-        productId: 'credits_100',
+        productId: 'tapeletter.credits_100',
         verificationData: 'tok-r',
       }).expect(200);
       const data = Buffer.from(
@@ -363,7 +363,7 @@ describe('billing (e2e)', () => {
     const res = await request(server())
       .post('/api/dev/credits')
       .set(as(u))
-      .send({ type: 'charge', productId: 'credits_1200' })
+      .send({ type: 'charge', productId: 'tapeletter.credits_1200' })
       .expect(200);
     expect(res.body.credits).toBe(1210);
     const ledger = await request(server())

@@ -31,10 +31,10 @@ describe('결제 기록 5년 보관 뒤 파기 (e2e, 시계 주입)', () => {
       .set(idem())
       .send({
         store: 'app_store',
-        productId: 'credits_100',
+        productId: 'tapeletter.credits_100',
         verificationData: JSON.stringify({
           transactionId: tx,
-          productId: 'credits_100',
+          productId: 'tapeletter.credits_100',
         }),
       })
       .expect(200);

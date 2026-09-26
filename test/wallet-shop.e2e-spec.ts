@@ -52,9 +52,9 @@ describe('wallet · shop (e2e)', () => {
         ],
       ),
     ).toEqual([
-      ['credits_100', '₩1,100'],
-      ['credits_550', '₩5,500'],
-      ['credits_1200', '₩11,000'],
+      ['tapeletter.credits_100', '₩1,100'],
+      ['tapeletter.credits_550', '₩5,500'],
+      ['tapeletter.credits_1200', '₩11,000'],
     ]);
     expect(res.body.giftAmounts).toEqual([10, 30, 50, 100]);
   });
