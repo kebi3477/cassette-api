@@ -203,6 +203,11 @@ docker compose --env-file .env.production logs -f api     # "Migration ... has b
 | `OFFSITE_POSTGRES_RETENTION` | 선택 | 외부 DB 덤프 보관 기간. 기본 `30d` |
 | `OFFSITE_DELETED_RETENTION` | 선택 | 저장소에서 지워진 파일을 외부에 남기는 기간. 기본 `30d` |
 
+### 신고 알림
+| 변수 | 필수 | 설명 |
+|---|---|---|
+| `REPORT_WEBHOOK_URL` | 선택 | 신고가 들어오면 JSON을 POST할 웹훅(슬랙 Incoming Webhook의 `text`, 디스코드 웹훅의 `content`를 둘 다 넣는다). 신고 번호·사유·대상 유형만 보낸다. 없으면 서버 로그(`warn`)만 |
+
 ### 개인정보 처리방침 · 이용약관 (`/privacy`, `/terms`)
 비어 있으면 페이지에 "준비 중"으로 표시하고, 운영에서는 시작할 때 경고 로그만 남긴다(서버는 뜬다). 문서 내용과 사용자 확인이 필요한 항목은 `docs/policy.md`.
 
@@ -292,7 +297,24 @@ docker compose --env-file .env.production run --rm --entrypoint /bin/sh offsite-
 
 ---
 
-## 8. 자주 쓰는 명령
+## 8. 신고 처리
+
+앱의 신고(`POST /api/reports`)는 `reports` 테이블에 쌓인다. 관리자 API는 아직 없어서 미니PC에서 스크립트로 본다. 새 신고는 api 로그의 `[신고] id=…` 줄과 `REPORT_WEBHOOK_URL`(설정 시)로 알 수 있다.
+
+```bash
+cd ~/cassette-api
+ops/reports/reports.sh list            # 최근 신고 20개 (처리 안 한 received가 먼저, KST 시각·사유·대상 이름·신고자·메모 앞부분)
+ops/reports/reports.sh list 50
+ops/reports/reports.sh show <신고 id>   # 한 건 자세히: 대상 사람/테이프(보낸 사람, 보낸 시각, 파일 키), 같은 대상에 대한 신고 수
+ops/reports/reports.sh set <신고 id> reviewed    # 상태: received → reviewed(확인함) → actioned(조치함) | dismissed(조치 안 함)
+```
+
+- 스크립트는 `docker compose --env-file .env.production exec postgres psql`로 돈다(`ENV_FILE`로 env 파일을 바꿀 수 있다).
+- 테이프 내용 확인이 필요하면 `show`의 `tape_file_key`로 저장소에서 파일을 찾는다. 신고 기록에는 녹음 파일을 복사하지 않는다.
+- 조치(계정 삭제 등)는 아직 도구가 없다. 필요하면 DB에서 직접 처리하고, 처리한 뒤 상태를 `actioned`로 바꾼다.
+- 신고 기록은 3년 보관하고 매시간 정리 작업이 지운다. 신고자가 탈퇴하면 신고자만 비워 둔다(`신고자` 칸이 `(탈퇴)`).
+
+## 9. 자주 쓰는 명령
 
 ```bash
 alias dc='docker compose --env-file .env.production'
@@ -304,6 +326,6 @@ dc exec api node node_modules/typeorm/cli.js -d dist/config/data-source.js migra
 docker system df                   # 디스크 사용량
 ```
 
-## 9. 검증 메모
+## 10. 검증 메모
 
 - 이 저장소에서는 Docker 데몬 없이 `docker compose --env-file <예시 env> config --quiet`로 compose 문법·변수 치환을 확인했다. 실제 컨테이너 기동(이미지 빌드, healthcheck, 터널 연결, 백업 cron)은 미니PC에서 처음 올릴 때 1장 5)의 순서로 확인한다.
