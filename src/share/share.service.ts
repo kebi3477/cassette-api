@@ -5,12 +5,14 @@ import { DataSource, EntityManager } from 'typeorm';
 import { AppException } from '../common/errors/app.exception.js';
 import { touchFriendship } from '../deliveries/deliveries.service.js';
 import {
+  RECEIVED_VIEWER_JOIN,
   isLinkExpired,
   shareUrl,
   toShelfItem,
 } from '../deliveries/delivery.mapper.js';
 import { Delivery } from '../deliveries/entities/delivery.entity.js';
 import { Block } from '../friends/entities/block.entity.js';
+import { Friendship } from '../friends/entities/friendship.entity.js';
 import { FriendsService, UNNAMED } from '../friends/friends.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AUDIO_URL_TTL_SEC } from '../recordings/recordings.constants.js';
@@ -46,7 +48,14 @@ export class ShareService {
     return {
       state: claimedByMe ? 'claimed' : 'available',
       deliveryId: claimedByMe ? d.id : null,
-      sender: { userId: d.senderId, name: d.sender?.name ?? d.senderName },
+      sender: {
+        userId: d.senderId,
+        name: d.sender?.name ?? d.senderName,
+        // 보낸 사람이 이미 내 친구면 내가 붙인 별명
+        nickname: d.senderId
+          ? await this.friends.nicknameOf(userId, d.senderId)
+          : null,
+      },
       tapeType: d.recording!.tapeType,
       durationMs: d.recording!.durationMs,
       tag: d.tag,
@@ -97,6 +106,7 @@ export class ShareService {
         .linkClaimed({
           deliveryId: delivery.id,
           senderId: delivery.senderId,
+          recipientId: userId,
           recipientName: me?.name ?? UNNAMED,
         })
         .catch((e: unknown) => this.logger.error(`푸시 실패: ${String(e)}`));
@@ -106,6 +116,12 @@ export class ShareService {
       .createQueryBuilder(Delivery, 'd')
       .innerJoinAndSelect('d.recording', 'r')
       .leftJoinAndSelect('d.sender', 's')
+      .leftJoinAndMapOne(
+        'd.viewerFriendship',
+        Friendship,
+        'vf',
+        RECEIVED_VIEWER_JOIN,
+      )
       .where('d.id = :id', { id: delivery.id })
       .getOneOrFail();
     let friend: ClaimResponse['friend'] = null;

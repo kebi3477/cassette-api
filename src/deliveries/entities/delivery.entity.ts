@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   type Relation,
 } from 'typeorm';
+import type { Friendship } from '../../friends/entities/friendship.entity.js';
 import { Recording } from '../../recordings/entities/recording.entity.js';
 import { ShelfGroup } from '../../shelf/entities/shelf-group.entity.js';
 import { User } from '../../users/entities/user.entity.js';
@@ -79,6 +80,12 @@ export class Delivery {
 
   @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date | null;
+
+  /**
+   * 조회할 때만 채운다(컬럼 아님): 보는 사람의 친구 줄. 받은 테이프면 받는 사람→보낸 사람,
+   * 보낸 테이프면 보낸 사람→받는 사람. 별명(nickname)을 응답에 넣으려고 쓴다
+   */
+  viewerFriendship?: Friendship | null;
 
   @OneToOne(() => Recording, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'recording_id' })

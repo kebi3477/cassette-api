@@ -2,8 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { AppException } from '../common/errors/app.exception.js';
-import { toShelfItem } from '../deliveries/delivery.mapper.js';
+import {
+  RECEIVED_VIEWER_JOIN,
+  toShelfItem,
+} from '../deliveries/delivery.mapper.js';
 import { Delivery } from '../deliveries/entities/delivery.entity.js';
+import { Friendship } from '../friends/entities/friendship.entity.js';
 import { Recording } from '../recordings/entities/recording.entity.js';
 import { StorageService } from '../storage/storage.service.js';
 import { User } from '../users/entities/user.entity.js';
@@ -293,6 +297,12 @@ export class ShelfService {
       .createQueryBuilder(Delivery, 'd')
       .innerJoinAndSelect('d.recording', 'r')
       .leftJoinAndSelect('d.sender', 's')
+      .leftJoinAndMapOne(
+        'd.viewerFriendship',
+        Friendship,
+        'vf',
+        RECEIVED_VIEWER_JOIN,
+      )
       .where(VISIBLE, { userId })
       .orderBy('d.position', 'ASC')
       .addOrderBy('d.sent_at', 'DESC')

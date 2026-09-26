@@ -70,7 +70,7 @@ export class FriendsController {
     @Param('userId', uuid) friendId: string,
     @Body() dto: UpdateFriendDto,
   ): Promise<FriendResponse> {
-    return this.friendsService.setStarred(user.id, friendId, dto.starred);
+    return this.friendsService.update(user.id, friendId, dto);
   }
 
   /** 목록에서 빼기 */

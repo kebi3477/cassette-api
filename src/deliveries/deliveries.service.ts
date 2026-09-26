@@ -17,6 +17,8 @@ import { TapeInventory } from '../users/entities/tape-inventory.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { normalizeName } from '../users/users.service.js';
 import {
+  RECEIVED_VIEWER_JOIN,
+  SENT_VIEWER_JOIN,
   SHARE_LINK_TTL_MS,
   SentTape,
   ShelfItem,
@@ -166,6 +168,7 @@ export class DeliveriesService {
         this.notifications.tapeDelivered({
           deliveryId: delivery.id,
           recipientId: delivery.recipientId!,
+          senderId,
           senderName: sender.name ?? UNNAMED,
           tapeType: recording.tapeType,
         }),
@@ -267,6 +270,12 @@ export class DeliveriesService {
       .createQueryBuilder(Delivery, 'd')
       .innerJoinAndSelect('d.recording', 'r')
       .leftJoinAndSelect('d.sender', 's')
+      .leftJoinAndMapOne(
+        'd.viewerFriendship',
+        Friendship,
+        'vf',
+        RECEIVED_VIEWER_JOIN,
+      )
       .where('d.id = :id AND d.recipient_id = :userId', { id, userId })
       .andWhere('d.deleted_at IS NULL AND d.suppressed = false')
       .getOne();
@@ -279,6 +288,12 @@ export class DeliveriesService {
       .createQueryBuilder(Delivery, 'd')
       .innerJoinAndSelect('d.recording', 'r')
       .leftJoinAndSelect('d.recipient', 'u')
+      .leftJoinAndMapOne(
+        'd.viewerFriendship',
+        Friendship,
+        'vf',
+        SENT_VIEWER_JOIN,
+      )
       .where('d.sender_id = :senderId', { senderId })
       .orderBy('d.sent_at', 'DESC')
       .addOrderBy('d.id', 'DESC');

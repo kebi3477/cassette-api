@@ -3,6 +3,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AppException } from '../common/errors/app.exception.js';
 import { User } from '../users/entities/user.entity.js';
+import { normalizeNickname } from '../common/utils/display-text.js';
 import {
   BlockedUserResponse,
   FriendResponse,
@@ -17,6 +18,7 @@ export const UNNAMED = '이름 없음';
 interface FriendRow {
   user_id: string;
   name: string | null;
+  nickname: string | null;
   starred: boolean;
   last_at: Date | null;
 }
@@ -49,17 +51,39 @@ export class FriendsService {
     return toFriend(row);
   }
 
-  async setStarred(
+  /** 즐겨찾기·별명 바꾸기. 보낸 값만 바꾼다 */
+  async update(
     userId: string,
     friendId: string,
-    starred: boolean,
+    patch: { starred?: boolean; nickname?: string | null },
   ): Promise<FriendResponse> {
-    const result = await this.friendships.update(
-      { userId, friendId },
-      { starred },
-    );
+    const changes: Partial<Friendship> = {};
+    if (patch.starred !== undefined) changes.starred = patch.starred;
+    if (patch.nickname !== undefined)
+      changes.nickname = normalizeNickname(patch.nickname);
+    if (Object.keys(changes).length === 0) {
+      throw new AppException('VALIDATION_FAILED', {
+        fields: ['starred', 'nickname'],
+      });
+    }
+    const result = await this.friendships.update({ userId, friendId }, changes);
     if (!result.affected) throw new AppException('FRIEND_NOT_FOUND');
     return this.get(userId, friendId);
+  }
+
+  /**
+   * viewer가 subject에게 붙인 별명 (없으면 null). 푸시 문구처럼 한 명씩 필요할 때 쓴다.
+   * 차단해서 친구 줄이 없으면 null
+   */
+  async nicknameOf(
+    viewerId: string,
+    subjectId: string,
+  ): Promise<string | null> {
+    const row = await this.friendships.findOne({
+      where: { userId: viewerId, friendId: subjectId },
+      select: { nickname: true },
+    });
+    return row?.nickname ?? null;
   }
 
   /** 목록에서 빼기. 내 쪽 줄만 지운다 (상대 목록에는 남는다) */
@@ -83,6 +107,7 @@ export class FriendsService {
     return {
       userId: targetId,
       name: target.name ?? UNNAMED,
+      nickname: block.friendNickname,
       blockedAt: block.createdAt.toISOString(),
     };
   }
@@ -114,6 +139,7 @@ export class FriendsService {
         blockedId: targetId,
         wasFriend: !!friendship,
         friendStarred: friendship?.starred ?? false,
+        friendNickname: friendship?.nickname ?? null,
         friendLastAt: friendship?.lastAt ?? null,
       }),
     );
@@ -127,20 +153,27 @@ export class FriendsService {
       .innerJoin(User, 'u', 'u.id = b.blocked_id')
       .select('b.blocked_id', 'user_id')
       .addSelect('u.name', 'name')
+      .addSelect('b.friend_nickname', 'nickname')
       .addSelect('b.created_at', 'created_at')
       .where('b.user_id = :userId', { userId })
       .orderBy('b.created_at', 'DESC')
-      .getRawMany<{ user_id: string; name: string | null; created_at: Date }>();
+      .getRawMany<{
+        user_id: string;
+        name: string | null;
+        nickname: string | null;
+        created_at: Date;
+      }>();
     return {
       items: rows.map((r) => ({
         userId: r.user_id,
         name: r.name ?? UNNAMED,
+        nickname: r.nickname,
         blockedAt: new Date(r.created_at).toISOString(),
       })),
     };
   }
 
-  /** 차단 해제. 차단하기 전에 친구였다면 친구 목록으로 되돌린다 */
+  /** 차단 해제. 차단하기 전에 친구였다면 즐겨찾기·별명·마지막 시각까지 친구 목록으로 되돌린다 */
   async unblock(userId: string, targetId: string): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
       const block = await manager.findOneBy(Block, {
@@ -158,6 +191,7 @@ export class FriendsService {
             userId,
             friendId: targetId,
             starred: block.friendStarred,
+            nickname: block.friendNickname,
             lastAt: block.friendLastAt,
           })
           .orIgnore()
@@ -178,6 +212,7 @@ export class FriendsService {
         .innerJoin(User, 'u', 'u.id = f.friend_id')
         .select('f.friend_id', 'user_id')
         .addSelect('u.name', 'name')
+        .addSelect('f.nickname', 'nickname')
         .addSelect('f.starred', 'starred')
         .addSelect('f.last_at', 'last_at')
         .where('f.user_id = :userId', { userId })
@@ -198,6 +233,7 @@ function toFriend(r: FriendRow): FriendResponse {
   return {
     userId: r.user_id,
     name: r.name ?? UNNAMED,
+    nickname: r.nickname,
     starred: r.starred,
     lastAt: r.last_at ? new Date(r.last_at).toISOString() : null,
   };

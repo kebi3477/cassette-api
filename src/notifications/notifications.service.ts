@@ -2,12 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity.js';
+import { Friendship } from '../friends/entities/friendship.entity.js';
 import { DeviceToken } from './entities/device-token.entity.js';
 import { FcmService, PushMessage } from './fcm.service.js';
 
 export interface TapeDeliveredEvent {
   deliveryId: string;
   recipientId: string;
+  senderId: string;
   senderName: string;
   tapeType: 1 | 3 | 5;
 }
@@ -15,11 +17,13 @@ export interface TapeDeliveredEvent {
 export interface LinkClaimedEvent {
   deliveryId: string;
   senderId: string;
+  recipientId: string;
   recipientName: string;
 }
 
 export interface GiftReceivedEvent {
   recipientId: string;
+  senderId: string;
   senderName: string;
   amount: number;
 }
@@ -54,28 +58,56 @@ export class NotificationsService {
     await this.dataSource.manager.delete(DeviceToken, { token, userId });
   }
 
-  tapeDelivered(e: TapeDeliveredEvent): Promise<void> {
+  async tapeDelivered(e: TapeDeliveredEvent): Promise<void> {
+    const name = await this.displayName(
+      e.recipientId,
+      e.senderId,
+      e.senderName,
+    );
     return this.push(e.recipientId, {
-      title: `${e.senderName}님이 테이프를 보냈어요`,
+      title: `${name}님이 테이프를 보냈어요`,
       body: `${e.tapeType}분 테이프가 도착했어요. 뜯어서 들어보세요`,
       data: { type: 'tape', deliveryId: e.deliveryId },
     });
   }
 
-  linkClaimed(e: LinkClaimedEvent): Promise<void> {
+  async linkClaimed(e: LinkClaimedEvent): Promise<void> {
+    const name = await this.displayName(
+      e.senderId,
+      e.recipientId,
+      e.recipientName,
+    );
     return this.push(e.senderId, {
-      title: `${e.recipientName}님이 테이프를 받았어요`,
+      title: `${name}님이 테이프를 받았어요`,
       body: '이제 서로 친구예요',
       data: { type: 'claimed', deliveryId: e.deliveryId },
     });
   }
 
-  giftReceived(e: GiftReceivedEvent): Promise<void> {
+  async giftReceived(e: GiftReceivedEvent): Promise<void> {
+    const name = await this.displayName(
+      e.recipientId,
+      e.senderId,
+      e.senderName,
+    );
     return this.push(e.recipientId, {
-      title: `${e.senderName}님이 크레딧을 선물했어요`,
+      title: `${name}님이 크레딧을 선물했어요`,
       body: `${e.amount} 크레딧을 받았어요`,
       data: { type: 'gift' },
     });
+  }
+
+  /** 알림을 받는 사람(viewer)이 상대(subject)에게 붙인 별명이 있으면 그 별명, 없으면 원래 이름 */
+  private async displayName(
+    viewerId: string,
+    subjectId: string,
+    fallback: string,
+  ): Promise<string> {
+    const row = await this.dataSource.manager.findOne(Friendship, {
+      where: { userId: viewerId, friendId: subjectId },
+      select: { nickname: true },
+    });
+    return row?.nickname ?? fallback;
   }
 
   private async push(userId: string, message: PushMessage): Promise<void> {

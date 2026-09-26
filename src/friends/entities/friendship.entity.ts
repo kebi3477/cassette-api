@@ -29,6 +29,13 @@ export class Friendship {
   @Column({ type: 'boolean', default: false })
   starred: boolean;
 
+  /**
+   * 내가 붙인 별명 (최대 10자). 나에게만 보이고 상대에게는 영향이 없다.
+   * 앱은 `nickname ?? name`으로 표시한다
+   */
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  nickname: string | null;
+
   /** 마지막으로 테이프를 주고받은 시각 */
   @Column({ name: 'last_at', type: 'timestamptz', nullable: true })
   lastAt: Date | null;

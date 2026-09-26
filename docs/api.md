@@ -124,16 +124,31 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 | `stats.friendCount` | 친구 수 (차단한 사람 제외) |
 | `providers` | 연결된 계정 (`kakao` · `apple` · `dev`) — 설정 > 연결된 계정 |
 
+### 별명 (nickname) ✅
+상대 사용자를 보여 주는 모든 응답은 원래 이름 `name`과 함께 **내가 붙인 별명 `nickname`**(없으면 `null`)을 준다. 앱은 **`nickname ?? name`**으로 표시한다. 별명은 나에게만 보이고 상대에게는 영향이 없다(친구 관계가 방향이 있어서 내 쪽 줄에만 저장).
+
+| 응답 | 필드 |
+|---|---|
+| Friend (`GET /friends`, `PATCH /friends/{id}`, 친구 화면의 `friend`, 링크 받기의 `friend`) | `nickname` |
+| BlockedUser (`GET /friends/blocks`, `POST /friends/{id}/block`) | `nickname`(차단할 때 붙어 있던 별명) |
+| ShelfItem.`sender` (서랍, 받은 테이프, 뜯기, 친구 화면, 옮기기, 링크 받기) | `sender.nickname` |
+| SentTape.`recipient` (보낸 테이프 목록·상세, 보내기 응답) | `recipient.nickname` |
+| `GET /share/{token}`의 `sender` | 보낸 사람이 이미 내 친구면 별명 |
+
+- 푸시("○○님이 테이프를 보냈어요", 선물, 링크 받음)는 **알림을 받는 사람이 붙인 별명**이 있으면 그 별명을 쓴다.
+- 크레딧 내역의 선물 문구("○○님이 선물", "○○님에게 선물")는 **원래 이름으로 기록한다**. 원장은 고치지 않는 기록이라, 나중에 별명을 바꾸거나 지워도 내역이 달라지지 않게 하려는 것이다. 이미 저장된 문구에도 소급하지 않는다.
+- 웹 링크 페이지(`/t/{token}`, `/share/{token}/web`)는 로그인이 없어 원래 이름만 쓴다.
+
 ### Friend ✅
 ```json
-{ "userId": "7347352a-…", "name": "지현", "starred": true, "lastAt": "2026-09-24T09:00:00.000Z" }
+{ "userId": "7347352a-…", "name": "고동민", "nickname": "동민이", "starred": true, "lastAt": "2026-09-24T09:00:00.000Z" }
 ```
 - `lastAt`: 마지막으로 테이프를 주고받은 시각. 없으면 `null` ("최근 -")
 - 이름을 아직 안 정한 사용자는 `name: "이름 없음"`
 
 ### BlockedUser ✅
 ```json
-{ "userId": "…", "name": "민수", "blockedAt": "2026-09-25T06:00:00.000Z" }
+{ "userId": "…", "name": "민수", "nickname": null, "blockedAt": "2026-09-25T06:00:00.000Z" }
 ```
 
 ### Tag ✅
@@ -148,7 +163,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 ```json
 {
   "id": "delivery uuid",
-  "sender": { "userId": "…", "name": "지현" },
+  "sender": { "userId": "…", "name": "지현", "nickname": null },
   "tapeType": 3,
   "durationMs": 34000,
   "tag": "birthday",
@@ -168,7 +183,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 ```json
 {
   "id": "delivery uuid",
-  "recipient": { "userId": "…", "name": "엄마" },
+  "recipient": { "userId": "…", "name": "엄마", "nickname": "우리 엄마" },
   "linkName": null,
   "tapeType": 3,
   "durationMs": 120000,
@@ -204,7 +219,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 | `tape_purchase` | 3분 테이프 구매 / 3분 테이프 5개 구매 / 5분 테이프 구매 / 5분 테이프 5개 구매 |
 | `drawer_expand` | 서랍 넓히기 |
 | `gift_sent` | {이름}님에게 선물 |
-| `gift_received` | {이름}님이 선물 |
+| `gift_received` | {이름}님이 선물 (별명이 아니라 원래 이름으로 기록) |
 | `refund` | 크레딧 충전 취소 · ₩1,100 (스토어 환불) |
 | `admin` | 개발용 지급 (개발 전용) |
 
@@ -232,6 +247,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 | `USER_NOT_FOUND` | 404 | 찾을 수 없는 사용자예요 | | ✅ |
 | `INVALID_NAME` | 400 | 이름은 1~8자로 적어주세요 | | ✅ |
 | `FRIEND_NOT_FOUND` | 404 | 친구 목록에 없는 사람이에요 | | ✅ |
+| `INVALID_NICKNAME` | 400 | 별명은 10자까지 적을 수 있어요 | | ✅ |
 | `CANNOT_BLOCK_SELF` | 400 | 나는 차단할 수 없어요 | | ✅ |
 | `BLOCK_NOT_FOUND` | 404 | 차단한 친구가 아니에요 | | ✅ |
 | `INSUFFICIENT_CREDITS` | 402 | 크레딧이 부족해요 | `need: number` (모자란 크레딧, charge 시트) | ✅ |
@@ -463,11 +479,15 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 화면 부제: 즐겨찾기면 `즐겨찾기 · MM.DD`, 아니면 `최근 MM.DD`.
 
 ### ✅ `PATCH /friends/{userId}`
-즐겨찾기(☆/★). 토글은 앱이 현재 값을 뒤집어 보낸다.
+즐겨찾기(☆/★)와 별명. 보낸 필드만 바꾸고, 둘을 같이 보내도 된다. 둘 다 없으면 `400 VALIDATION_FAILED`.
 ```json
-{ "starred": true }
+{ "starred": true, "nickname": "동민이" }
 ```
-응답 `200 Friend` · 오류 `404 FRIEND_NOT_FOUND`
+- `starred`: 토글은 앱이 현재 값을 뒤집어 보낸다
+- `nickname`: 나에게만 보이는 별명. 앞뒤 공백을 빼고 **최대 10자**(한글·이모지도 한 글자, 이름과 같은 규칙). **빈 문자열이나 `null`이면 별명을 지운다.** 규칙을 어기면 `400 INVALID_NICKNAME`
+- 별명은 **차단했다가 해제하면 즐겨찾기처럼 되돌아온다.** 친구 목록에서 빼면(`DELETE /friends/{userId}`) 별명도 함께 사라진다
+
+응답 `200 Friend` · 오류 `404 FRIEND_NOT_FOUND`, `400 INVALID_NICKNAME`
 
 ### ✅ `DELETE /friends/{userId}`
 친구 시트 > "목록에서 빼기". 응답 `204` · 오류 `404 FRIEND_NOT_FOUND`
@@ -668,7 +688,7 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 {
   "state": "available",
   "deliveryId": null,
-  "sender": { "userId": "…", "name": "하늘" },
+  "sender": { "userId": "…", "name": "하늘", "nickname": null },
   "tapeType": 1,
   "durationMs": 34000,
   "tag": "thinking",
@@ -858,7 +878,7 @@ AdMob 보상형 광고 서버 측 확인(SSV) 콜백. **Google이 부른다.** G
 로그아웃 전에. `204`
 
 ### 푸시 모양 ✅
-FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`면 보내지 않는다. 앱이 지워져 무효가 된 토큰은 서버가 지운다. 서버에 FCM 키가 없으면(개발) 보내지 않고 로그만 남긴다.
+FCM HTTP v1로 보낸다(`notification` + `data`). 문구의 이름은 **알림을 받는 사람이 붙인 별명**이 있으면 별명, 없으면 원래 이름이다. `notificationsEnabled: false`면 보내지 않는다. 앱이 지워져 무효가 된 토큰은 서버가 지운다. 서버에 FCM 키가 없으면(개발) 보내지 않고 로그만 남긴다.
 | 종류 | title | body | data |
 |---|---|---|---|
 | 테이프 도착 | `{보낸 사람}님이 테이프를 보냈어요` | `{3}분 테이프가 도착했어요. 뜯어서 들어보세요` | `{ "type": "tape", "deliveryId": "…" }` → 서랍 + 소포 화면 |
@@ -983,6 +1003,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`
 | 날짜 | 내용 |
 |---|---|
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |
+| 2026-09-26 | 친구 별명: `PATCH /friends/{userId}`에 `nickname`(최대 10자, 빈 값·null이면 삭제), Friend·BlockedUser·ShelfItem.sender·SentTape.recipient·링크 미리보기 sender에 `nickname` 추가, 오류 코드 `INVALID_NICKNAME`, 푸시는 받는 사람의 별명, 원장 문구는 원래 이름. 개인정보 처리방침 1.3 |
 | 2026-09-26 | 신고 `POST /reports` 🔑 추가(테이프·사람, 24시간 중복 신고는 기존 신고 반환, 하루 20건, `alsoBlock`), 오류 코드 `REPORT_TARGET_NOT_FOUND`·`CANNOT_REPORT_SELF`. 개인정보 처리방침·이용약관 1.2 |
 | 2026-09-26 | 개인정보 처리방침·이용약관 1.1 (정책 결정 반영, `docs/policy.md`). 녹음 원본은 변환이 끝나면 삭제, 5년 지난 결제 기록 자동 파기 (응답 변경 없음) |
 | 2026-09-25 | 개인정보 처리방침 `GET /privacy`·이용약관 `GET /terms` 추가 (HTML, `/api` 밖, 앱 설정 → 정보와 스토어 등록 URL용) |

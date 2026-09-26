@@ -81,6 +81,10 @@ export const ErrorCodes = {
     status: HttpStatus.NOT_FOUND,
     message: '친구 목록에 없는 사람이에요',
   },
+  INVALID_NICKNAME: {
+    status: HttpStatus.BAD_REQUEST,
+    message: '별명은 10자까지 적을 수 있어요',
+  },
   CANNOT_BLOCK_SELF: {
     status: HttpStatus.BAD_REQUEST,
     message: '나는 차단할 수 없어요',

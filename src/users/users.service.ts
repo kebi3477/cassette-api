@@ -13,21 +13,11 @@ import { ShelfService } from '../shelf/shelf.service.js';
 import { MeResponse } from './dto/me.response.js';
 import { UpdateMeDto } from './dto/update-me.dto.js';
 import { TapeInventory } from './entities/tape-inventory.entity.js';
-import { NAME_MAX_LENGTH, User } from './entities/user.entity.js';
+import { User } from './entities/user.entity.js';
 
-/** 이름 규칙: 앞뒤 공백 제거 후 1~8자(코드 포인트 기준), 제어 문자 금지 */
-export function normalizeName(raw: string): string {
-  const name = raw.normalize('NFC').trim();
-  const length = [...name].length;
-  const hasControlChar = [...name].some((ch) => {
-    const code = ch.codePointAt(0)!;
-    return code < 0x20 || code === 0x7f;
-  });
-  if (length < 1 || length > NAME_MAX_LENGTH || hasControlChar) {
-    throw new AppException('INVALID_NAME');
-  }
-  return name;
-}
+// 이름·별명 규칙은 common/utils/display-text.ts (친구 모듈과 순환 참조를 피하려고 분리)
+import { normalizeName } from '../common/utils/display-text.js';
+export { normalizeName };
 
 @Injectable()
 export class UsersService {

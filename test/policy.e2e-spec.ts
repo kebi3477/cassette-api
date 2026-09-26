@@ -68,7 +68,7 @@ describe('정책 페이지 /privacy · /terms (e2e, 운영자 정보 없음)', (
 
   it('정책 결정 1.1 반영: 버전·개정 이력, 만 14세, 청약철회, 유효기간, 종료 30일, 원본 삭제, AdMob, 고지 기간', async () => {
     const privacy = (await request(app.getHttpServer()).get('/privacy')).text;
-    expect(privacy).toContain('버전 1.2');
+    expect(privacy).toContain('버전 1.3');
     expect(privacy).toContain('<h2>개정 이력</h2>');
     expect(privacy).toContain('만 14세 이상만 이용할 수 있습니다');
     expect(privacy).toContain('테이프 소리로 변환이 끝나면 바로 삭제');
@@ -96,6 +96,7 @@ describe('정책 페이지 /privacy · /terms (e2e, 운영자 정보 없음)', (
   it('신고(1.2): 수집 항목, 3년 보관, 앱 안 신고와 문의 이메일', async () => {
     const privacy = (await request(app.getHttpServer()).get('/privacy')).text;
     expect(privacy).toContain('신고 기록');
+    expect(privacy).toContain('친구에게 붙인 별명(최대 10자, 나에게만 보임)');
     expect(privacy).toContain('3년(신고 처리 이력 보관)');
     expect(privacy).toContain('녹음 파일을 따로 복사하지 않으며');
     const terms = (await request(app.getHttpServer()).get('/terms')).text;

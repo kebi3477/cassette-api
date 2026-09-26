@@ -6,8 +6,18 @@ export const SHARE_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export interface PersonRef {
   /** 탈퇴한 사람이면 null */
   userId: string | null;
+  /** 상대가 정한 이름 */
   name: string;
+  /** 내가 붙인 별명 (없으면 null). 앱은 `nickname ?? name`으로 표시한다 */
+  nickname: string | null;
 }
+
+/** 받은 테이프 조회에 붙이는 친구 줄 조인 (받는 사람 → 보낸 사람) */
+export const RECEIVED_VIEWER_JOIN =
+  'vf.user_id = d.recipient_id AND vf.friend_id = d.sender_id';
+/** 보낸 테이프 조회에 붙이는 친구 줄 조인 (보낸 사람 → 받는 사람) */
+export const SENT_VIEWER_JOIN =
+  'vf.user_id = d.sender_id AND vf.friend_id = d.recipient_id';
 
 export interface ShelfItem {
   id: string;
@@ -57,6 +67,7 @@ export function toShelfItem(d: Delivery): ShelfItem {
     sender: {
       userId: d.senderId,
       name: d.sender?.name ?? d.senderName,
+      nickname: d.viewerFriendship?.nickname ?? null,
     },
     tapeType: d.recording!.tapeType,
     durationMs: d.recording!.durationMs,
@@ -88,7 +99,11 @@ export function toSentTape(
   return {
     id: d.id,
     recipient: d.recipientId
-      ? { userId: d.recipientId, name: d.recipient?.name ?? d.linkName ?? '' }
+      ? {
+          userId: d.recipientId,
+          name: d.recipient?.name ?? d.linkName ?? '',
+          nickname: d.viewerFriendship?.nickname ?? null,
+        }
       : null,
     linkName: d.linkName,
     tapeType: d.recording!.tapeType,

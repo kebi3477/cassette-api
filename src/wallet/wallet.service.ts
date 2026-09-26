@@ -201,7 +201,12 @@ export class WalletService {
     });
 
     this.notifications
-      .giftReceived({ recipientId: toId, senderName: fromName, amount })
+      .giftReceived({
+        recipientId: toId,
+        senderId: fromId,
+        senderName: fromName,
+        amount,
+      })
       .catch((e: unknown) => this.logger.error(`푸시 실패: ${String(e)}`));
     return { credits: entry.balanceAfter, entry: toLedgerEntry(entry) };
   }

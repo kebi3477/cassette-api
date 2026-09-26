@@ -33,6 +33,15 @@ export class Block {
   @Column({ name: 'friend_starred', type: 'boolean', default: false })
   friendStarred: boolean;
 
+  /** 차단할 때의 별명 (해제 시 복원) */
+  @Column({
+    name: 'friend_nickname',
+    type: 'varchar',
+    length: 10,
+    nullable: true,
+  })
+  friendNickname: string | null;
+
   @Column({ name: 'friend_last_at', type: 'timestamptz', nullable: true })
   friendLastAt: Date | null;
 

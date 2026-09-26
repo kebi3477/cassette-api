@@ -28,7 +28,7 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
   return {
     kind: 'privacy',
     title: '개인정보 처리방침',
-    version: '1.2',
+    version: '1.3',
     effectiveDate: op.effectiveDate,
     intro: [
       `${operator}(이하 '운영자')는 목소리를 테이프에 녹음해 보내는 앱 카세트(cassette)와 링크 웹 페이지(이하 '서비스')를 운영하면서, 「개인정보 보호법」에 따라 이용자의 개인정보를 보호하고 관련 고충을 빠르게 처리하기 위해 이 처리방침을 둡니다.`,
@@ -87,7 +87,7 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
             ],
             [
               '친구·차단',
-              '친구 목록, 즐겨찾기, 마지막으로 주고받은 시각, 차단한 사람 목록',
+              '친구 목록, 즐겨찾기, 친구에게 붙인 별명(최대 10자, 나에게만 보임), 마지막으로 주고받은 시각, 차단한 사람 목록',
               '테이프를 주고받거나 이용자가 설정할 때',
             ],
             [
@@ -147,7 +147,7 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
           headers: ['항목', '보유 기간'],
           rows: [
             [
-              '회원 정보, 로그인 계정, 로그인 유지 토큰, 친구·차단, 크레딧 잔액과 내역, 보유 테이프, 서랍 칸, 알림 토큰, 광고 보상 기록, 중복 요청 방지 기록',
+              '회원 정보, 로그인 계정, 로그인 유지 토큰, 친구·차단(친구 별명 포함. 친구 목록에서 빼면 그 친구의 별명도 바로 삭제), 크레딧 잔액과 내역, 보유 테이프, 서랍 칸, 알림 토큰, 광고 보상 기록, 중복 요청 방지 기록',
               '탈퇴 즉시 삭제',
             ],
             [
@@ -326,6 +326,11 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
       },
     ],
     history: [
+      {
+        version: '1.3',
+        summary:
+          '친구 별명 추가: 처리 항목에 친구에게 붙인 별명(나에게만 보임), 탈퇴하거나 친구 목록에서 빼면 삭제',
+      },
       {
         version: '1.2',
         summary:
