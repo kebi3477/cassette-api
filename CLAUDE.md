@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
-tapeletter(테이프레터) API. 목소리 테이프를 녹음해 친구에게 보내는 앱(`../cassette-app`, Flutter)의 백엔드. (서비스 이름은 cassette에서 tapeletter로 바뀌었다. 저장소·폴더 이름은 관제자가 따로 바꾼다)
+tapeletter(테이프레터) API. 목소리 테이프를 녹음해 친구에게 보내는 앱(`../tapeletter-app`, Flutter)의 백엔드. (서비스 이름은 cassette에서 tapeletter로 바뀌었다. 저장소·폴더 이름은 관제자가 따로 바꾼다)
 
 - **운영 내부 이름은 `cassette`로 남긴다**: `BULLMQ_PREFIX`·`S3_BUCKET` 기본값, compose `name`·볼륨·컨테이너(`cassette-edge` 등), edge Caddyfile의 버킷 경로 `/cassette/*`, DB 이름, 개발용 기본 비밀값 문자열. 바꾸면 운영 데이터 이전이 필요하다. 사용자에게 보이는 이름(워드마크, 약관, 스킴 `tapeletter://`, 패키지 `com.kebi.tapeletter`)만 tapeletter다
 

@@ -1,6 +1,6 @@
 # tapeletter API 계약서
 
-tapeletter(테이프레터) 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **단일 계약서**다. (저장소·폴더 이름은 아직 cassette다.) 앱은 이 문서만 보고 맞춘다.
+tapeletter(테이프레터) 앱(`tapeletter-app`, Flutter)과 이 서버(`tapeletter-api`) 사이의 **단일 계약서**다. 앱은 이 문서만 보고 맞춘다.
 서버를 바꾸면 이 문서를 같은 커밋에서 고친다. 맨 아래 "변경 이력"에 한 줄 남긴다.
 
 - 상태 표시: ✅ 구현됨 · ⏳ 예정 (경로·모양은 확정안이지만 구현하면서 바뀔 수 있다. 바뀌면 변경 이력에 적는다)
@@ -22,7 +22,7 @@ tapeletter(테이프레터) 앱(`cassette-app`, Flutter)과 이 서버(`cassette
 
 S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → 변환 → 보내기 → 재생, 상점, 크레딧)을 돌릴 수 있다.
 
-1. 서버 실행 (`cassette-api`에서)
+1. 서버 실행 (`tapeletter-api`에서)
    ```bash
    cp .env.example .env            # 처음 한 번. DATABASE_URL, JWT_SECRET, PUBLIC_BASE_URL 채우기
    createdb cassette_dev           # 처음 한 번 (Homebrew Postgres)

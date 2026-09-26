@@ -60,8 +60,8 @@ sudo systemctl enable --now docker          # 재부팅해도 docker가 뜨고, 
 sudo timedatectl set-timezone Asia/Seoul    # 로그 읽기 편하게 (cron은 컨테이너 안에서 UTC 기준)
 
 # 2) 소스
-git clone https://github.com/kebi3477/cassette-api.git ~/cassette-api
-cd ~/cassette-api
+git clone https://github.com/kebi3477/tapeletter-api.git ~/projects/tapeletter-api
+cd ~/projects/tapeletter-api
 
 # 3) 환경 변수
 cp .env.example .env.production
@@ -108,7 +108,7 @@ curl -s https://api.<도메인>/api/health               # 터널 경유
 ## 3. 배포 · 업데이트 · 마이그레이션
 
 ```bash
-cd ~/cassette-api
+cd ~/projects/tapeletter-api
 # (권장) 업데이트 전에 DB 백업 한 번
 docker compose --env-file .env.production run --rm --entrypoint /bin/sh pg-backup /ops/backup/pg-backup.sh
 
@@ -269,7 +269,7 @@ docker compose --env-file .env.production logs --tail 50 pg-backup offsite-backu
 
 ### 7-1. DB만 되돌리기 (같은 미니PC)
 ```bash
-cd ~/cassette-api
+cd ~/projects/tapeletter-api
 docker compose --env-file .env.production stop api cloudflared        # 쓰기를 멈춘다
 ls -lt backups/postgres | head                                         # 되돌릴 덤프 고르기
 docker compose --env-file .env.production run --rm --entrypoint /bin/sh pg-backup -c \
@@ -305,7 +305,7 @@ docker compose --env-file .env.production run --rm --entrypoint /bin/sh offsite-
 앱의 신고(`POST /api/reports`)는 `reports` 테이블에 쌓인다. 관리자 API는 아직 없어서 미니PC에서 스크립트로 본다. 새 신고는 api 로그의 `[신고] id=…` 줄과 `REPORT_WEBHOOK_URL`(설정 시)로 알 수 있다.
 
 ```bash
-cd ~/cassette-api
+cd ~/projects/tapeletter-api
 ops/reports/reports.sh list            # 최근 신고 20개 (처리 안 한 received가 먼저, KST 시각·사유·대상 이름·신고자·메모 앞부분)
 ops/reports/reports.sh list 50
 ops/reports/reports.sh show <신고 id>   # 한 건 자세히: 대상 사람/테이프(보낸 사람, 보낸 시각, 파일 키), 같은 대상에 대한 신고 수
