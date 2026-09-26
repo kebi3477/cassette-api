@@ -52,7 +52,7 @@ test/                        # e2e
 - 서랍(cap, 기본 12)이 꽉 차도 받은 테이프는 "분류 안 함"에 넣는다. 보관량과 cap을 응답에 담아 앱이 배너를 띄우게 한다
 - 보낸 사람은 자기가 보낸 테이프를 들을 수 없다. 보낸 테이프 조회는 받았는지·들었는지만 준다
 - 녹음 파일은 받는 사람에게만, 짧은 만료의 presigned URL로 준다
-- 가격과 수치는 디자인 원본 `../design_handoff_cassette_app/source/CassetteApp.logic.js`와 `docs/DATA_MODEL.md`를 기준으로 한다 (저장소 바깥, Claude Design 프로젝트 https://claude.ai/design/p/42baf543-407c-43b6-a96e-04d5997ef801 에서 받은 v2)
+- 가격과 수치는 디자인 원본 `../design_handoff_cassette_app/source/TapeletterApp.logic.js`와 `docs/DATA_MODEL.md`를 기준으로 한다 (저장소 바깥, Claude Design 프로젝트 https://claude.ai/design/p/42baf543-407c-43b6-a96e-04d5997ef801 에서 받은 v2)
 
 ## 명령어
 

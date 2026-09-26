@@ -1,6 +1,6 @@
 import type { PaidTapeType } from '../users/entities/tape-inventory.entity.js';
 
-/** 가격표. 디자인 원본(CassetteApp.logic.js)의 shopTapes · etc · charge와 같다 */
+/** 가격표. 디자인 원본(TapeletterApp.logic.js)의 shopTapes · etc · charge와 같다 */
 export interface TapeProduct {
   id: string;
   tapeType: PaidTapeType;

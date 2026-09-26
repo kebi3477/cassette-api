@@ -574,6 +574,55 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
         .expect(409);
     });
 
+    it('링크 이름은 선택 입력: 생략·null·빈 문자열은 null, 받으면 recipient가 채워진다', async () => {
+      const a = await devLogin(app, '무명링크');
+      const b = await devLogin(app, '진짜이름');
+
+      for (const body of [{}, { linkName: null }, { linkName: '  ' }]) {
+        const rec = await readyRecording(app, a.accessToken);
+        const sent = await send(a, { recordingId: rec, ...body }).expect(201);
+        expect(sent.body).toMatchObject({
+          recipient: null,
+          linkName: null,
+          status: 'link_pending',
+        });
+        expect(sent.body.share.url).toMatch(/\/t\/[A-Za-z0-9_-]+$/);
+      }
+
+      const rec = await readyRecording(app, a.accessToken);
+      const tooLong = await send(a, {
+        recordingId: rec,
+        linkName: '가'.repeat(9),
+      }).expect(400);
+      expect(tooLong.body.code).toBe('INVALID_NAME');
+      const both = await send(a, {
+        recordingId: rec,
+        recipientId: b.user.id,
+        linkName: '유진',
+      }).expect(400);
+      expect(both.body.code).toBe('VALIDATION_FAILED');
+
+      const sent = await send(a, { recordingId: rec, linkName: '' }).expect(
+        201,
+      );
+      expect(sent.body.linkName).toBeNull();
+      const token = (sent.body.share.url as string).split('/t/')[1];
+      await request(server())
+        .post(`/api/share/${token}/claim`)
+        .set(as(b))
+        .set(idem())
+        .expect(200);
+      const detail = await request(server())
+        .get(`/api/deliveries/sent/${sent.body.id}`)
+        .set(as(a))
+        .expect(200);
+      expect(detail.body).toMatchObject({
+        linkName: null,
+        recipient: { userId: b.user.id, name: '진짜이름', nickname: null },
+      });
+      expect(detail.body.share).toBeNull();
+    });
+
     it('만료된 링크는 LINK_EXPIRED, 다시 공유하면 새 링크(7일)', async () => {
       const a = await devLogin(app, '만료');
       const b = await devLogin(app, '받을');

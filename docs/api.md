@@ -4,7 +4,7 @@ tapeletter(테이프레터) 앱(`tapeletter-app`, Flutter)과 이 서버(`tapele
 서버를 바꾸면 이 문서를 같은 커밋에서 고친다. 맨 아래 "변경 이력"에 한 줄 남긴다.
 
 - 상태 표시: ✅ 구현됨 · ⏳ 예정 (경로·모양은 확정안이지만 구현하면서 바뀔 수 있다. 바뀌면 변경 이력에 적는다)
-- 수치·문구의 정답은 디자인 원본 `design_handoff_cassette_app/source/CassetteApp.logic.js`다.
+- 수치·문구의 정답은 디자인 원본 `design_handoff_cassette_app/source/TapeletterApp.logic.js`다.
 
 ## 목차
 1. [공통 규칙](#1-공통-규칙)
@@ -202,7 +202,9 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 | `unopened` | 안 뜯음 | 아직 소포를 안 뜯었어요 |
 | `opened` | `MM.DD 들음` | `MM.DD에 들었어요` |
 
-- 링크로 보냈으면 `recipient`는 받기 전까지 `null`, `linkName`은 라벨에 적은 이름, `share`는 `{ "url", "expiresAt" }`
+- 링크로 보냈으면 `recipient`는 받기 전까지 `null`, `linkName`은 라벨에 적은 이름(**이름을 안 적었으면 `null`**), `share`는 `{ "url", "expiresAt" }`
+- **받은 뒤에는 `recipient`가 채워진다**(받은 사람의 실제 이름 `name`, 내가 붙인 별명 `nickname`). `linkName`은 적은 그대로 남는다
+- 앱 표시 이름 순서: `recipient`가 있으면 **`recipient`를 우선**(`nickname` → `name`), 없으면 `linkName`, 그것도 `null`이면 "새 친구"
 - **재생 URL은 없다.** 보낸 사람은 들을 수 없다("테이프는 이제 받는 사람만 들을 수 있어요")
 - 받는 사람이 나를 차단해서 전달되지 않은 테이프도 계속 `unopened`로 보인다
 - 받는 사람이 서랍에서 지워도 보낸 테이프 목록에는 남는다. 받는 사람이 탈퇴하면 목록에서 사라진다
@@ -601,7 +603,9 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 ```json
 { "recordingId": "…", "linkName": "유진" }
 ```
-- `recipientId`와 `linkName` 중 하나만. `linkName`은 라벨에 적힌 이름(1~8자)
+- `recipientId`가 있으면 친구에게, 없으면 새 친구 링크로 보낸다
+- `linkName`은 **선택 입력**: 라벨에 적은 이름. 생략·`null`·빈 문자열(공백만 포함)이면 `null`로 저장한다(앱은 "새 친구"로 표시). 값이 있을 때만 이름 규칙(1~8자)을 적용해 어기면 `400 INVALID_NAME`
+- 친구에게 보내면서 `linkName`에 값을 넣으면 `400 VALIDATION_FAILED`
 - `tag`는 **선택**: 생략하거나 `null`이면 태그 없음(응답의 `tag`도 `null`)
 - 받는 사람 서랍이 꽉 차도 보낸다("분류 안 함" 맨 위에 들어가고, 받는 쪽 앱이 배너를 띄운다)
 - 받는 사람이 나를 차단했어도 `201`로 보인다(받는 쪽에는 들어가지 않는다)
@@ -883,7 +887,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). 문구의 이름은 **알림�
 |---|---|---|---|
 | 테이프 도착 | `{보낸 사람}님이 테이프를 보냈어요` | `{3}분 테이프가 도착했어요. 뜯어서 들어보세요` | `{ "type": "tape", "deliveryId": "…" }` → 서랍 + 소포 화면 |
 | 크레딧 선물 | `{보낸 사람}님이 크레딧을 선물했어요` | `{30} 크레딧을 받았어요` | `{ "type": "gift" }` → 크레딧 내역 |
-| 링크 테이프를 받음 | `{이름}님이 테이프를 받았어요` | `이제 서로 친구예요` | `{ "type": "claimed", "deliveryId": "…" }` → 보낸 테이프 상세 |
+| 링크 테이프를 받음 | `{받은 사람}님이 테이프를 받았어요` (받은 사람의 실제 이름 또는 내가 붙인 별명. `linkName`은 쓰지 않는다) | `이제 서로 친구예요` | `{ "type": "claimed", "deliveryId": "…" }` → 보낸 테이프 상세 |
 
 ---
 
@@ -1002,6 +1006,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). 문구의 이름은 **알림�
 
 | 날짜 | 내용 |
 |---|---|
+| 2026-09-27 | 디자인 v3·v4: `POST /deliveries`의 `linkName`을 **선택 입력**으로(생략·null·빈 문자열 → `null` 저장, 값이 있을 때만 1~8자). `recipientId`가 없으면 링크로 보낸다. SentTape.`linkName`은 `null`일 수 있고, 받은 뒤에는 `recipient`가 채워져 앱은 `recipient`를 우선 표시. 디자인 원본 파일 이름 `TapeletterApp.logic.js`·`TapeletterApp.template.html` |
 | 2026-09-27 | 크레딧 팩 상품 ID 변경: `credits_100`·`credits_550`·`credits_1200` → **`tapeletter.credits_100`·`tapeletter.credits_550`·`tapeletter.credits_1200`**(같은 Apple 개발자 팀의 다른 앱이 옛 ID를 이미 써서 새 앱에 만들 수 없었다). `GET /shop/products`의 `creditPacks[].productId`, `POST /billing/iap`·`POST /dev/credits`의 `productId`가 모두 새 ID다. 옛 ID는 `404 PRODUCT_NOT_FOUND` |
 | 2026-09-26 | 서비스 이름 변경 **cassette → tapeletter**: 앱에서 열기 스킴 `tapeletter://t/{token}`(Android intent의 `scheme=tapeletter`), 웹 페이지 워드마크·`og:site_name`·`<title>`, Android 스토어 기본값 `com.kebi.tapeletter`, 도메인 예시 `tapeletter.lab241.com`. 약관 1.3·처리방침 1.4. API 경로·필드는 그대로 |
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |

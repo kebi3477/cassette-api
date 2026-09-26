@@ -3,7 +3,7 @@ import type { WebPreview } from './dto/share.response.js';
 /**
  * 링크 웹 페이지 (`GET /t/{token}`). 앱이 없는 사람이 카톡·문자로 받은 링크를 열면 보는 첫 화면이다.
  *
- * 디자인 원본: design_handoff_cassette_app/source/CassetteApp.template.html
+ * 디자인 원본: design_handoff_cassette_app/source/TapeletterApp.template.html
  *   - `webOn` 블록 (소포 흔들림 → 탭해서 뜯기 → 테이프 재생 → 앱 설치 안내)
  *   - `leOn` 블록 (이미 받은 링크 · 만료된 링크 · 내가 보낸 링크)
  *   - Tape.template.html (테이프 그래픽), keyframes.css, tokens
@@ -15,7 +15,7 @@ import type { WebPreview } from './dto/share.response.js';
 export const SUIT_CSS =
   'https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css';
 
-/** 테이프 종류별 색·이름·릴 크기 (CassetteApp.logic.js의 T) */
+/** 테이프 종류별 색·이름·릴 크기 (TapeletterApp.logic.js의 T) */
 const TAPES = {
   1: {
     shell: '#1E1E1E',
@@ -384,7 +384,7 @@ ${tapeHtml(p.tapeType, date, p.senderName)}
 
 export type LinkErrorKind = 'taken' | 'expired' | 'own' | 'not_found';
 
-/** leOn 문구 (CassetteApp.logic.js의 LE). not_found는 원본에 없어서 같은 톤으로 추가했다 */
+/** leOn 문구 (TapeletterApp.logic.js의 LE). not_found는 원본에 없어서 같은 톤으로 추가했다 */
 const LE: Record<
   LinkErrorKind,
   {
@@ -483,7 +483,7 @@ function closePage(){
 `;
 
 /**
- * 흐름과 타이밍은 CassetteApp.logic.js의 webUnwrap / webPlay와 같다.
+ * 흐름과 타이밍은 TapeletterApp.logic.js의 webUnwrap / webPlay와 같다.
  * parcel(shake) → 탭 → tearing(tearL/tearR .7s, 750ms 뒤) → play(insert .7s, 700ms 뒤 자동 재생)
  * 릴: packL = full − (full−30)·p, packR = 30 + (full−30)·p
  */

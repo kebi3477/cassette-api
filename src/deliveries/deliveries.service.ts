@@ -69,13 +69,16 @@ export class DeliveriesService {
    * 녹음 확인 → (친구면) 친구·차단 확인 → 3·5분 테이프 1개 차감 → 테이프 생성 → 친구 lastAt 갱신.
    */
   async send(senderId: string, dto: CreateDeliveryDto): Promise<SentTape> {
-    if (!dto.recipientId === !dto.linkName) {
+    // 새 친구 링크의 이름은 선택 입력이다. 생략·null·빈 문자열(공백만)은 null로 저장하고,
+    // 값이 있을 때만 이름 규칙(1~8자)을 적용한다. 친구에게 보낼 때는 이름을 받지 않는다.
+    const rawLinkName = dto.linkName?.trim() ? dto.linkName : null;
+    if (dto.recipientId && rawLinkName !== null) {
       throw new AppException('VALIDATION_FAILED', {
         fields: ['recipientId', 'linkName'],
       });
     }
-    const linkName =
-      dto.linkName !== undefined ? normalizeName(dto.linkName) : null;
+    const isLink = !dto.recipientId;
+    const linkName = rawLinkName !== null ? normalizeName(rawLinkName) : null;
 
     const result = await this.dataSource.transaction(async (m) => {
       const recording = await m
@@ -141,8 +144,8 @@ export class DeliveriesService {
           senderName: sender.name ?? UNNAMED,
           recipientId: dto.recipientId ?? null,
           linkName,
-          shareToken: linkName ? newShareToken() : null,
-          shareExpiresAt: linkName
+          shareToken: isLink ? newShareToken() : null,
+          shareExpiresAt: isLink
             ? new Date(now.getTime() + SHARE_LINK_TTL_MS)
             : null,
           tag: dto.tag ?? null,

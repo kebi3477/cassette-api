@@ -27,7 +27,7 @@ import {
 } from '../wallet/entities/credit-ledger.entity.js';
 import { makeToneWav } from './tone.js';
 
-/** 프로토타입(CassetteApp.logic.js) 초기 데이터 */
+/** 프로토타입(TapeletterApp.logic.js) 초기 데이터 */
 const FRIENDS = [
   { name: '지현', star: true, last: '09.24' },
   { name: '엄마', star: true, last: '09.10' },
