@@ -15,8 +15,19 @@ const hasFfmpeg =
 
 describe('FfmpegService', () => {
   it('필터 체인: 대역 제한, wow/flutter, 새추레이션, 히스', () => {
-    expect(TAPE_FILTER_COMPLEX).toContain('highpass=f=100');
-    expect(TAPE_FILTER_COMPLEX).toContain('lowpass=f=7000');
+    // "옛날 통화" EQ: 505Hz 로우컷·3120Hz 하이컷(각 2차 필터 4개), 벨 3개
+    expect(TAPE_FILTER_COMPLEX.match(/highpass=f=505:t=q:w=/g)).toHaveLength(4);
+    expect(TAPE_FILTER_COMPLEX.match(/lowpass=f=3120:t=q:w=/g)).toHaveLength(4);
+    for (const q of ['0.5098', '0.6013', '0.9', '2.5629']) {
+      expect(TAPE_FILTER_COMPLEX).toContain(`highpass=f=505:t=q:w=${q}`);
+      expect(TAPE_FILTER_COMPLEX).toContain(`lowpass=f=3120:t=q:w=${q}`);
+    }
+    expect(TAPE_FILTER_COMPLEX).toContain('equalizer=f=677:t=q:w=3.76:g=7.14');
+    expect(TAPE_FILTER_COMPLEX).toContain(
+      'equalizer=f=1170:t=q:w=3.76:g=-4.52',
+    );
+    expect(TAPE_FILTER_COMPLEX).toContain('equalizer=f=2110:t=q:w=2.82:g=6.19');
+    expect(TAPE_FILTER_COMPLEX).not.toContain('lowpass=f=7000');
     expect(TAPE_FILTER_COMPLEX).toMatch(/vibrato=f=0\.7.*vibrato=f=7/);
     expect(TAPE_FILTER_COMPLEX).toContain('asoftclip=type=tanh');
     expect(TAPE_FILTER_COMPLEX).toContain('amix=inputs=2');

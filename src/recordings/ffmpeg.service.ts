@@ -7,14 +7,33 @@ const CONVERT_TIMEOUT_MS = 120_000;
 
 /**
  * "테이프 소리" 필터 체인.
- * - 대역 제한: highpass 100Hz + lowpass 7kHz (카세트의 좁은 대역)
+ * - "옛날 통화" EQ: Ableton EQ Eight의 "Telephone Vocal" 프리셋을 옮긴 것 (TELEPHONE_EQ)
  * - 약한 wow(0.7Hz)와 flutter(7Hz): vibrato 두 번
  * - 새추레이션: 게인을 올려 tanh 소프트 클립 후 다시 내림
  * - 히스 노이즈: 핑크 노이즈를 고역만 남겨 작게 섞음
  */
+/** 8차 버터워스(48dB/oct)를 2차 필터 4개로 나눌 때의 Q */
+const BUTTERWORTH_8_Q = [0.5098, 0.6013, 0.9, 2.5629];
+
+/**
+ * "옛날 통화" EQ (Ableton EQ Eight "Telephone Vocal" 프리셋)
+ * 1. Low Cut 48dB/oct 505Hz: highpass 4개 (8차 버터워스)
+ * 2. Bell 677Hz +7.14dB Q 3.76
+ * 3. Bell 1170Hz -4.52dB Q 3.76
+ * 4. Bell 2110Hz +6.19dB Q 2.82
+ * 5. High Cut 48dB/oct 3120Hz: lowpass 4개 (8차 버터워스)
+ */
+export const TELEPHONE_EQ = [
+  ...BUTTERWORTH_8_Q.map((q) => `highpass=f=505:t=q:w=${q}`),
+  'equalizer=f=677:t=q:w=3.76:g=7.14',
+  'equalizer=f=1170:t=q:w=3.76:g=-4.52',
+  'equalizer=f=2110:t=q:w=2.82:g=6.19',
+  ...BUTTERWORTH_8_Q.map((q) => `lowpass=f=3120:t=q:w=${q}`),
+].join(',');
+
 export const TAPE_FILTER_COMPLEX = [
   '[0:a]aformat=sample_rates=44100:channel_layouts=mono,' +
-    'highpass=f=100,lowpass=f=7000,' +
+    `${TELEPHONE_EQ},` +
     'vibrato=f=0.7:d=0.03,vibrato=f=7:d=0.008,' +
     'volume=1.8,asoftclip=type=tanh,volume=0.6[voice]',
   '[1:a]highpass=f=2500,lowpass=f=9000,volume=0.25[hiss]',
