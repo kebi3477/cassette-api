@@ -17,8 +17,8 @@ import {
 } from './link-page.js';
 import { ShareService } from './share.service.js';
 
-/** 앱의 커스텀 URL 스킴. "앱에서 열기"가 cassette://t/{token}을 연다 (앱에 등록 필요) */
-export const APP_SCHEME = 'cassette';
+/** 앱의 커스텀 URL 스킴. "앱에서 열기"가 tapeletter://t/{token}을 연다 (앱에 등록 필요) */
+export const APP_SCHEME = 'tapeletter';
 export const OG_IMAGE_PATH = '/static/og-image.png';
 
 /** 핸드오프 assets/app-icon.svg를 600×600 PNG로 바꾼 대표 이미지 (빌드 때 dist로 복사된다) */

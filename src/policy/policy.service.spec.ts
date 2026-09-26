@@ -30,7 +30,7 @@ describe('PolicyService', () => {
 
   it('두 문서 모두 법정 항목 순서대로 렌더링되고 초안 표시는 본문에 없다', () => {
     const service = new PolicyService(
-      new ConfigService({ POLICY_OPERATOR_NAME: '카세트' }),
+      new ConfigService({ POLICY_OPERATOR_NAME: '테이프레터' }),
     );
     const privacy = renderPolicyPage(
       service.privacy(),

@@ -55,10 +55,10 @@ describe('링크 웹 페이지 /t/{token} (e2e)', () => {
       '<meta property="og:title" content="&lt;b&gt;&amp;&#39;&quot;님이 테이프를 보냈어요">',
     );
     expect(res.text).toContain(
-      '<meta property="og:image" content="https://cassette.test/static/og-image.png">',
+      '<meta property="og:image" content="https://tapeletter.test/static/og-image.png">',
     );
     expect(res.text).toContain(
-      `<meta property="og:url" content="https://cassette.test/t/${token}">`,
+      `<meta property="og:url" content="https://tapeletter.test/t/${token}">`,
     );
     expect(res.text).toContain(
       '3분 테이프 · 앱이 없어도 이 페이지에서 7일 동안 들을 수 있어요',
@@ -89,7 +89,12 @@ describe('링크 웹 페이지 /t/{token} (e2e)', () => {
 
     // 스토어·앱에서 열기
     expect(res.text).toContain('href="https://apps.apple.com/app/id1"');
-    expect(res.text).toContain(`"appUrl":"cassette://t/${token}"`);
+    expect(res.text).toContain(`"appUrl":"tapeletter://t/${token}"`);
+    expect(res.text).toContain('<span>tapeletter</span>');
+    expect(res.text).toContain(
+      '<meta property="og:site_name" content="tapeletter">',
+    );
+    expect(res.text).not.toContain('cassette');
   });
 
   it('남은 기간은 expiresAt으로 계산한다', async () => {

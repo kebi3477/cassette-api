@@ -481,7 +481,7 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
         status: 'link_pending',
       });
       const url: string = sent.body.share.url;
-      expect(url).toMatch(/^https:\/\/cassette\.test\/t\/[A-Za-z0-9_-]+$/);
+      expect(url).toMatch(/^https:\/\/tapeletter\.test\/t\/[A-Za-z0-9_-]+$/);
       const token = url.split('/t/')[1];
 
       const own = await request(server())

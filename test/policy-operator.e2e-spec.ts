@@ -12,8 +12,8 @@ const saved = vi.hoisted(() => {
     'POLICY_EFFECTIVE_DATE',
   ];
   const before = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
-  process.env.POLICY_OPERATOR_NAME = `<script>카세트&"'`;
-  process.env.POLICY_CONTACT_EMAIL = 'help@cassette.test';
+  process.env.POLICY_OPERATOR_NAME = `<script>테이프레터&"'`;
+  process.env.POLICY_CONTACT_EMAIL = 'help@tapeletter.test';
   process.env.POLICY_PRIVACY_OFFICER = '<b>민경</b>';
   process.env.POLICY_BUSINESS_INFO = '사업자등록번호 000-00-00000';
   process.env.POLICY_EFFECTIVE_DATE = '2026-10-01';
@@ -40,14 +40,14 @@ describe('정책 페이지 (e2e, 운영자 정보 있음)', () => {
     const privacy = (
       await request(app.getHttpServer()).get('/privacy').expect(200)
     ).text;
-    expect(privacy).not.toContain('<script>카세트');
+    expect(privacy).not.toContain('<script>테이프레터');
     expect(privacy).not.toContain('<b>민경</b>');
-    expect(privacy).toContain('&lt;script&gt;카세트&amp;&quot;&#39;(이하');
+    expect(privacy).toContain('&lt;script&gt;테이프레터&amp;&quot;&#39;(이하');
     expect(privacy).toContain(
       '<td data-label="구분">개인정보 보호책임자</td><td data-label="내용">&lt;b&gt;민경&lt;/b&gt;</td>',
     );
     expect(privacy).toContain(
-      '<td data-label="구분">이메일</td><td data-label="내용">help@cassette.test</td>',
+      '<td data-label="구분">이메일</td><td data-label="내용">help@tapeletter.test</td>',
     );
     expect(privacy).toContain('시행일 2026-10-01');
     expect(privacy).not.toContain('준비 중');

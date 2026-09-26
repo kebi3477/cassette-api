@@ -11,7 +11,9 @@ import { APPLE_ISSUER, AppleService } from './apple.service.js';
 
 describe('AppleService', () => {
   const service = new AppleService(
-    new ConfigService({ APPLE_CLIENT_IDS: 'app.cassette, app.cassette.web' }),
+    new ConfigService({
+      APPLE_CLIENT_IDS: 'app.tapeletter, app.tapeletter.web',
+    }),
   );
   let privateKey: CryptoKey;
 
@@ -28,7 +30,7 @@ describe('AppleService', () => {
 
   const sign = (
     claims: Record<string, unknown>,
-    aud = 'app.cassette',
+    aud = 'app.tapeletter',
     iss = APPLE_ISSUER,
   ) =>
     new SignJWT(claims)
@@ -60,7 +62,7 @@ describe('AppleService', () => {
   });
 
   it('iss가 Apple이 아니면 거절한다', async () => {
-    const token = await sign({}, 'app.cassette', 'https://evil.example');
+    const token = await sign({}, 'app.tapeletter', 'https://evil.example');
     await expect(service.verify(token)).rejects.toMatchObject({
       code: 'SOCIAL_TOKEN_INVALID',
     });

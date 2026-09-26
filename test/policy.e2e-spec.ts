@@ -68,7 +68,7 @@ describe('정책 페이지 /privacy · /terms (e2e, 운영자 정보 없음)', (
 
   it('정책 결정 1.1 반영: 버전·개정 이력, 만 14세, 청약철회, 유효기간, 종료 30일, 원본 삭제, AdMob, 고지 기간', async () => {
     const privacy = (await request(app.getHttpServer()).get('/privacy')).text;
-    expect(privacy).toContain('버전 1.3');
+    expect(privacy).toContain('버전 1.4');
     expect(privacy).toContain('<h2>개정 이력</h2>');
     expect(privacy).toContain('만 14세 이상만 이용할 수 있습니다');
     expect(privacy).toContain('테이프 소리로 변환이 끝나면 바로 삭제');
@@ -84,7 +84,7 @@ describe('정책 페이지 /privacy · /terms (e2e, 운영자 정보 없음)', (
     );
 
     const terms = (await request(app.getHttpServer()).get('/terms')).text;
-    expect(terms).toContain('버전 1.2');
+    expect(terms).toContain('버전 1.3');
     expect(terms).toContain('결제일부터 7일 안에 청약철회를 할 수 있습니다');
     expect(terms).toContain('17조 2항 5호');
     expect(terms).toContain('크레딧에는 유효기간이 없습니다.');
@@ -104,5 +104,20 @@ describe('정책 페이지 /privacy · /terms (e2e, 운영자 정보 없음)', (
       '앱 안의 신고 기능이나 아래 문의 이메일로 신고할 수 있습니다',
     );
     expect(terms).not.toContain('앱 안의 신고 기능은 아직 없습니다');
+  });
+
+  it('서비스 이름: tapeletter(테이프레터), 워드마크·title·og:site_name, 개정 이력', async () => {
+    for (const path of ['/privacy', '/terms']) {
+      const html = (await request(app.getHttpServer()).get(path)).text;
+      expect(html).toContain('tapeletter(테이프레터)');
+      expect(html).toContain('<span>tapeletter</span>');
+      expect(html).toContain(
+        '<meta property="og:site_name" content="tapeletter">',
+      );
+      expect(html).toMatch(/<title>[^<]+ · tapeletter<\/title>/);
+      expect(html).toContain('서비스 이름 변경(카세트 → 테이프레터)');
+      expect(html).toContain('테이프레터 운영자(이하');
+      expect(html).not.toMatch(/cassette|카세트\(/);
+    }
   });
 });

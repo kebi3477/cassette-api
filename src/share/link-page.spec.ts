@@ -16,9 +16,9 @@ const ctx: PageContext = {
     appStore: 'https://apps.apple.com/app/id1',
     googlePlay: 'https://play.google.com/x',
   },
-  pageUrl: 'https://cassette.test/t/tok',
-  ogImageUrl: 'https://cassette.test/static/og-image.png',
-  appUrl: 'cassette://t/tok',
+  pageUrl: 'https://tapeletter.test/t/tok',
+  ogImageUrl: 'https://tapeletter.test/static/og-image.png',
+  appUrl: 'tapeletter://t/tok',
   androidIntentUrl: null,
 };
 

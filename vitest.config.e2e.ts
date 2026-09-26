@@ -19,16 +19,17 @@ export default defineConfig({
         process.env.TEST_DATABASE_URL ??
         'postgres://localhost:5432/cassette_test',
       JWT_SECRET: 'e2e-test-secret-e2e-test-secret-0123456789',
-      APPLE_CLIENT_IDS: 'app.cassette',
+      APPLE_CLIENT_IDS: 'app.tapeletter',
       KAKAO_APP_ID: '1234',
       REDIS_URL: process.env.TEST_REDIS_URL ?? 'redis://localhost:6379',
       BULLMQ_PREFIX: 'cassette-e2e',
       THROTTLE_DISABLED: process.env.THROTTLE_DISABLED ?? 'true',
       JOBS_DISABLED: 'true',
       REPORT_WEBHOOK_URL: 'https://hooks.test/report',
-      PUBLIC_BASE_URL: 'https://cassette.test',
+      PUBLIC_BASE_URL: 'https://tapeletter.test',
       APP_STORE_URL_IOS: 'https://apps.apple.com/app/id1',
-      APP_STORE_URL_ANDROID: 'https://play.google.com/store/apps/details?id=app.cassette',
+      APP_STORE_URL_ANDROID:
+        'https://play.google.com/store/apps/details?id=app.tapeletter',
     },
   },
 });

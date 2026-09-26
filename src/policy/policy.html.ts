@@ -101,16 +101,16 @@ export function renderPolicyPage(
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#FFFFFF">
-<title>${escapeHtml(doc.title)} · cassette</title>
+<title>${escapeHtml(doc.title)} · tapeletter</title>
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="cassette">
-<meta property="og:title" content="${escapeHtml(doc.title)} · cassette">
+<meta property="og:site_name" content="tapeletter">
+<meta property="og:title" content="${escapeHtml(doc.title)} · tapeletter">
 <meta property="og:url" content="${escapeHtml(pageUrl)}">
 <link rel="stylesheet" href="${SUIT_CSS}">
 <style nonce="${escapeHtml(nonce)}">${CSS}</style>
 </head>
 <body><main class="page">
-<header class="brand">${LOGO('pl-m', '#E5402B', 24)}<span>cassette</span></header>
+<header class="brand">${LOGO('pl-m', '#E5402B', 24)}<span>tapeletter</span></header>
 <h1>${escapeHtml(doc.title)}</h1>
 <p class="meta">시행일 ${escapeHtml(doc.effectiveDate)} · 버전 ${escapeHtml(doc.version)}</p>
 <div class="intro">${doc.intro.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}</div>

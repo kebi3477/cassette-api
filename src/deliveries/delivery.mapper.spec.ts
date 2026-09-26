@@ -53,11 +53,11 @@ describe('보낸 테이프 상태', () => {
         linkName: '유진',
         shareExpiresAt: new Date('2026-10-02T00:00:00Z'),
       }),
-      'https://cassette.app/',
+      'https://tapeletter.app/',
       now,
     );
     expect(t.share).toEqual({
-      url: 'https://cassette.app/t/tok',
+      url: 'https://tapeletter.app/t/tok',
       expiresAt: '2026-10-02T00:00:00.000Z',
     });
     expect(Object.keys(t)).not.toContain('url');

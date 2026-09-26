@@ -1,7 +1,7 @@
 import { OperatorInfo, PENDING, PolicyDocument } from './types.js';
 
 /**
- * 카세트 개인정보 처리방침.
+ * 테이프레터(tapeletter) 개인정보 처리방침.
  *
  * ⚠️ 법률 전문가 검토 전 초안이다 (docs/policy.md). 페이지 본문에는 이 표시를 노출하지 않는다.
  *
@@ -22,16 +22,16 @@ import { OperatorInfo, PENDING, PolicyDocument } from './types.js';
  * 저장 항목·보관 기간·외부 전송이 바뀌면 이 문서를 함께 고치고 version을 올린다.
  */
 export function privacyPolicy(op: OperatorInfo): PolicyDocument {
-  // 상호가 아직 없으면 본문 문장에는 "카세트 운영자"라고 쓰고, 표에는 "준비 중"으로 보여 준다
+  // 상호가 아직 없으면 본문 문장에는 "테이프레터 운영자"라고 쓰고, 표에는 "준비 중"으로 보여 준다
   const operator =
-    op.operatorName === PENDING ? '카세트 운영자' : op.operatorName;
+    op.operatorName === PENDING ? '테이프레터 운영자' : op.operatorName;
   return {
     kind: 'privacy',
     title: '개인정보 처리방침',
-    version: '1.3',
+    version: '1.4',
     effectiveDate: op.effectiveDate,
     intro: [
-      `${operator}(이하 '운영자')는 목소리를 테이프에 녹음해 보내는 앱 카세트(cassette)와 링크 웹 페이지(이하 '서비스')를 운영하면서, 「개인정보 보호법」에 따라 이용자의 개인정보를 보호하고 관련 고충을 빠르게 처리하기 위해 이 처리방침을 둡니다.`,
+      `${operator}(이하 '운영자')는 목소리를 테이프에 녹음해 보내는 앱 tapeletter(테이프레터)와 링크 웹 페이지(이하 '서비스')를 운영하면서, 「개인정보 보호법」에 따라 이용자의 개인정보를 보호하고 관련 고충을 빠르게 처리하기 위해 이 처리방침을 둡니다.`,
       '서비스는 기능에 꼭 필요한 정보만 처리합니다. 전화번호, 생년월일, 위치 정보, 연락처, 결제 카드 정보는 받지 않습니다.',
       '서비스는 만 14세 이상만 이용할 수 있습니다. 만 14세 미만으로 확인되면 계정과 정보를 삭제합니다.',
     ],
@@ -326,6 +326,10 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
       },
     ],
     history: [
+      {
+        version: '1.4',
+        summary: '서비스 이름 변경(카세트 → 테이프레터)',
+      },
       {
         version: '1.3',
         summary:

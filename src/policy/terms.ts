@@ -1,23 +1,23 @@
 import { OperatorInfo, PENDING, PolicyDocument } from './types.js';
 
 /**
- * 카세트 이용약관.
+ * 테이프레터(tapeletter) 이용약관.
  *
  * ⚠️ 법률 전문가 검토 전 초안이다 (docs/policy.md). 페이지 본문에는 이 표시를 노출하지 않는다.
  * 가격·수치·동작은 서버 코드와 같게 쓴다 (shop/products.ts, wallet/wallet.service.ts, billing/billing.service.ts,
  * deliveries/, share/, auth/rejoin.service.ts). 바뀌면 이 문서도 함께 고치고 version을 올린다.
  */
 export function termsOfService(op: OperatorInfo): PolicyDocument {
-  // 상호가 아직 없으면 본문 문장에는 "카세트 운영자"라고 쓰고, 표에는 "준비 중"으로 보여 준다
+  // 상호가 아직 없으면 본문 문장에는 "테이프레터 운영자"라고 쓰고, 표에는 "준비 중"으로 보여 준다
   const operator =
-    op.operatorName === PENDING ? '카세트 운영자' : op.operatorName;
+    op.operatorName === PENDING ? '테이프레터 운영자' : op.operatorName;
   return {
     kind: 'terms',
     title: '이용약관',
-    version: '1.2',
+    version: '1.3',
     effectiveDate: op.effectiveDate,
     intro: [
-      `이 약관은 ${operator}(이하 '운영자')가 제공하는 카세트(cassette) 앱과 웹 페이지(이하 '서비스')를 이용하는 조건과 절차, 운영자와 이용자의 권리·의무를 정합니다.`,
+      `이 약관은 ${operator}(이하 '운영자')가 제공하는 tapeletter(테이프레터) 앱과 웹 페이지(이하 '서비스')를 이용하는 조건과 절차, 운영자와 이용자의 권리·의무를 정합니다.`,
     ],
     sections: [
       {
@@ -191,6 +191,10 @@ export function termsOfService(op: OperatorInfo): PolicyDocument {
       },
     ],
     history: [
+      {
+        version: '1.3',
+        summary: '서비스 이름 변경(카세트 → 테이프레터)',
+      },
       {
         version: '1.2',
         summary:

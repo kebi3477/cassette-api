@@ -104,7 +104,7 @@ export class EnvironmentVariables {
   @IsBoolean()
   S3_CREATE_BUCKET: boolean = false;
 
-  /** 링크 주소의 앞부분. 예: https://cassette.app → https://cassette.app/t/{token} */
+  /** 링크 주소의 앞부분. 예: https://tapeletter.lab241.com → https://tapeletter.lab241.com/t/{token} */
   @IsUrl({ require_tld: false })
   PUBLIC_BASE_URL: string = 'http://localhost:3000';
 
@@ -347,7 +347,7 @@ export class EnvironmentVariables {
 
   @IsUrl()
   APP_STORE_URL_ANDROID: string =
-    'https://play.google.com/store/apps/details?id=com.kebi.cassette';
+    'https://play.google.com/store/apps/details?id=com.kebi.tapeletter';
 }
 
 export function validateEnv(

@@ -102,7 +102,7 @@ export interface PageContext {
   pageUrl: string;
   /** 대표 이미지 절대 주소 (og:image) */
   ogImageUrl: string;
-  /** 앱에서 열기: 커스텀 스킴 주소 (cassette://t/{token}) */
+  /** 앱에서 열기: 커스텀 스킴 주소 (tapeletter://t/{token}) */
   appUrl: string;
   /** 앱에서 열기(Android): intent 주소. 패키지 이름이 없으면 null */
   androidIntentUrl: string | null;
@@ -287,7 +287,7 @@ function head(opts: {
 <title>${t}</title>
 <meta name="description" content="${d}">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="cassette">
+<meta property="og:site_name" content="tapeletter">
 <meta property="og:title" content="${t}">
 <meta property="og:description" content="${d}">
 <meta property="og:image" content="${escapeHtml(ctx.ogImageUrl)}">
@@ -345,7 +345,7 @@ export function renderTapePage(
   };
 
   const body = `<body><main class="page">
-<header class="brand">${LOGO('wb-m', '#E5402B', 24)}<span>cassette</span></header>
+<header class="brand">${LOGO('wb-m', '#E5402B', 24)}<span>tapeletter</span></header>
 <section class="hero"><h1>${name}님이<br>테이프를 보냈어요</h1><p>${tape.name} 테이프 · ${date}</p></section>
 <section class="stage">
 <button type="button" class="parcel-btn" id="parcel" aria-label="소포 뜯기">
