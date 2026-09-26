@@ -1,4 +1,4 @@
-# cassette 입구 (docker-compose.edge.yml).
+# tapeletter 입구 (docker-compose.edge.yml). 컨테이너·버킷 이름의 cassette는 내부 이름이다.
 # 앞단 리버스 프록시(예: 미니PC의 myhandball Caddy)가 HTTPS를 끝내고 여기로 http로 넘긴다.
 # 이 컨테이너만 앞단 프록시의 도커 네트워크에 들어간다. api·s3를 그 네트워크에 넣으면
 # 서비스 이름(api, postgres 등)이 다른 프로젝트와 겹쳐 엉뚱한 컨테이너로 갈 수 있기 때문이다.
@@ -21,7 +21,7 @@
 		}
 	}
 
-	# AdMob app-ads.txt (스토어 등록의 개발자 웹사이트 = https://cassette.lab241.com)
+	# AdMob app-ads.txt (스토어 등록의 개발자 웹사이트 = https://tapeletter.lab241.com, 전환 기간에는 옛 도메인도)
 	# 게시자 ID는 AdMob 앱 ID(ca-app-pub-<게시자>~…)의 <게시자> 부분
 	handle /app-ads.txt {
 		header Content-Type "text/plain; charset=utf-8"

@@ -4,11 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
-Cassette API. 목소리 테이프를 녹음해 친구에게 보내는 앱(`../cassette-app`, Flutter)의 백엔드.
+tapeletter(테이프레터) API. 목소리 테이프를 녹음해 친구에게 보내는 앱(`../cassette-app`, Flutter)의 백엔드. (서비스 이름은 cassette에서 tapeletter로 바뀌었다. 저장소·폴더 이름은 관제자가 따로 바꾼다)
+
+- **운영 내부 이름은 `cassette`로 남긴다**: `BULLMQ_PREFIX`·`S3_BUCKET` 기본값, compose `name`·볼륨·컨테이너(`cassette-edge` 등), edge Caddyfile의 버킷 경로 `/cassette/*`, DB 이름, 개발용 기본 비밀값 문자열. 바꾸면 운영 데이터 이전이 필요하다. 사용자에게 보이는 이름(워드마크, 약관, 스킴 `tapeletter://`, 패키지 `com.kebi.tapeletter`)만 tapeletter다
 
 - NestJS 12, ESM(`"type": "module"`), 테스트는 vitest, 린트는 oxlint
 - Postgres(TypeORM, **마이그레이션으로 관리**, `synchronize` 사용 금지), Redis + BullMQ, S3 호환 저장소(운영: SeaweedFS)
-- 미니PC에서 docker compose로 운영하고, myhandball Caddy 뒤의 edge 입구(`docker-compose.edge.yml`, `cassette-edge`)로 `https://cassette.lab241.com`에 공개한다(Cloudflare Tunnel 방식도 파일은 남아 있다. `docs/deploy.md` 0장)
+- 미니PC에서 docker compose로 운영하고, myhandball Caddy 뒤의 edge 입구(`docker-compose.edge.yml`, `cassette-edge`)로 `https://tapeletter.lab241.com`에 공개한다(전환 기간에는 옛 도메인 `cassette.lab241.com`도 같이 연다)(Cloudflare Tunnel 방식도 파일은 남아 있다. `docs/deploy.md` 0장)
 - 두 저장소에 공통으로 적용되는 아키텍처 결정(스키마, 흐름, 미결정 사항)은 `../ARCHITECTURE.md`에 있다 (저장소 바깥 파일)
 - 클라이언트는 Flutter 앱 하나다. 응답 스펙은 앱 도메인 모델과 맞춘다
 - **API 계약서는 `docs/api.md` 하나다.** 엔드포인트·응답·오류 코드를 바꾸면 같은 커밋에서 고치고 변경 이력에 적는다. 오류 코드는 `src/common/errors/error-codes.ts`와 표를 같게 유지한다

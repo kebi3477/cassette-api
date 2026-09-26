@@ -1,6 +1,6 @@
-# Cassette API 계약서
+# tapeletter API 계약서
 
-Cassette 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **단일 계약서**다. 앱은 이 문서만 보고 맞춘다.
+tapeletter(테이프레터) 앱(`cassette-app`, Flutter)과 이 서버(`cassette-api`) 사이의 **단일 계약서**다. (저장소·폴더 이름은 아직 cassette다.) 앱은 이 문서만 보고 맞춘다.
 서버를 바꾸면 이 문서를 같은 커밋에서 고친다. 맨 아래 "변경 이력"에 한 줄 남긴다.
 
 - 상태 표시: ✅ 구현됨 · ⏳ 예정 (경로·모양은 확정안이지만 구현하면서 바뀔 수 있다. 바뀌면 변경 이력에 적는다)
@@ -722,7 +722,7 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 모바일 웹 페이지. 디자인 `webOn`·`leOn` 블록을 하이파이로 옮긴 서버 렌더 HTML 한 장이다(CSS·JS 인라인, 외부는 SUIT 폰트만).
 - 흐름: 소포 흔들림(`shake 2.2s`) → 탭해서 뜯기(`tearL`/`tearR` .7s, 750ms 뒤) → 테이프 등장(`insert` .7s) → 700ms 뒤 자동 재생(`POST /share/{token}/web/audio`의 URL, 릴 감김·진행 바) → 앱 설치 안내(App Store / Google Play, `APP_STORE_URL_*`)
 - 문구는 원본 그대로이고, "앱이 없어도 이 페이지에서 **N일** 동안 들을 수 있어요"의 N은 `expiresAt`까지 남은 날(올림)
-- **앱에서 열기**: `cassette://t/{token}`(Android는 `intent://t/{token}#Intent;scheme=cassette;package=<ANDROID_PACKAGE_NAME>;…`)을 열고, 1.6초 안에 앱으로 넘어가지 않으면 스토어로 보낸다. **앱은 URL 스킴 `cassette`를 등록하고 `cassette://t/{token}`을 링크 열기(`GET /share/{token}`)로 처리해야 한다**
+- **앱에서 열기**: `tapeletter://t/{token}`(Android는 `intent://t/{token}#Intent;scheme=tapeletter;package=<ANDROID_PACKAGE_NAME>;…`)을 열고, 1.6초 안에 앱으로 넘어가지 않으면 스토어로 보낸다. **앱은 URL 스킴 `tapeletter`를 등록하고 `tapeletter://t/{token}`을 링크 열기(`GET /share/{token}`)로 처리해야 한다**
 - 상태별 응답: 받을 수 있음 `200` · 이미 받음 `409`(leOn taken) · 만료 `410`(leOn expired) · 없음 `404`(같은 톤의 "테이프를 찾을 수 없어요")
 - 카카오톡·문자 미리보기(Open Graph): `og:title` "○○님이 테이프를 보냈어요", `og:description` "3분 테이프 · 앱이 없어도 …", `og:image` `https://<도메인>/static/og-image.png`(핸드오프 `assets/app-icon.svg`를 600×600 PNG로 변환)
 - 보안: 이름은 HTML 이스케이프, `Content-Security-Policy`는 요청마다 새 nonce(`script-src 'nonce-…'`, `style-src 'nonce-…' https://cdn.jsdelivr.net`, `default-src 'none'`), `Referrer-Policy: no-referrer`, `Cache-Control: no-store`
@@ -1002,6 +1002,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). 문구의 이름은 **알림�
 
 | 날짜 | 내용 |
 |---|---|
+| 2026-09-26 | 서비스 이름 변경 **cassette → tapeletter**: 앱에서 열기 스킴 `tapeletter://t/{token}`(Android intent의 `scheme=tapeletter`), 웹 페이지 워드마크·`og:site_name`·`<title>`, Android 스토어 기본값 `com.kebi.tapeletter`, 도메인 예시 `tapeletter.lab241.com`. 약관 1.3·처리방침 1.4. API 경로·필드는 그대로 |
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |
 | 2026-09-26 | 친구 별명: `PATCH /friends/{userId}`에 `nickname`(최대 10자, 빈 값·null이면 삭제), Friend·BlockedUser·ShelfItem.sender·SentTape.recipient·링크 미리보기 sender에 `nickname` 추가, 오류 코드 `INVALID_NICKNAME`, 푸시는 받는 사람의 별명, 원장 문구는 원래 이름. 개인정보 처리방침 1.3 |
 | 2026-09-26 | 신고 `POST /reports` 🔑 추가(테이프·사람, 24시간 중복 신고는 기존 신고 반환, 하루 20건, `alsoBlock`), 오류 코드 `REPORT_TARGET_NOT_FOUND`·`CANNOT_REPORT_SELF`. 개인정보 처리방침·이용약관 1.2 |

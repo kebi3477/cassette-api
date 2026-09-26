@@ -4,12 +4,12 @@
 
 | 페이지 | 주소 | 내용 | 버전 |
 |---|---|---|---|
-| 개인정보 처리방침 | `GET /privacy` | `src/policy/privacy-policy.ts` | 1.3 |
-| 이용약관 | `GET /terms` | `src/policy/terms.ts` | 1.2 |
+| 개인정보 처리방침 | `GET /privacy` | `src/policy/privacy-policy.ts` | 1.4 |
+| 이용약관 | `GET /terms` | `src/policy/terms.ts` | 1.3 |
 
 - 렌더링: `src/policy/policy.html.ts` (SUIT, 토큰 색, 스크립트 없음, CSP nonce), 운영자 정보: `src/policy/policy.service.ts`
 - 운영자 정보는 환경 변수 `POLICY_OPERATOR_NAME`, `POLICY_CONTACT_EMAIL`, `POLICY_PRIVACY_OFFICER`, `POLICY_BUSINESS_INFO`, `POLICY_EFFECTIVE_DATE`에서 읽는다. 비어 있으면 "준비 중"으로 보이고, 운영에서는 시작할 때 경고 로그만 남긴다.
-- 스토어 등록 URL: `https://cassette.lab241.com/privacy`, `https://cassette.lab241.com/terms`
+- 스토어 등록 URL: `https://tapeletter.lab241.com/privacy`, `https://tapeletter.lab241.com/terms`
 
 ## 작성 원칙
 
@@ -21,6 +21,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| 처리방침 1.4 · 약관 1.3 | 2026-09-26 | 서비스 이름 변경(카세트 → 테이프레터). 본문의 서비스 이름은 "tapeletter(테이프레터)", 상호가 비었을 때는 "테이프레터 운영자" |
 | 처리방침 1.3 | 2026-09-26 | 친구 별명(나에게만 보임, 최대 10자): 처리 항목 추가, 탈퇴하거나 친구 목록에서 빼면 삭제. 약관은 1.2 그대로 |
 | 1.2 | 2026-09-26 | 신고 기능(`POST /reports`): 신고 처리 목적, 신고 기록 항목·3년 보관, 신고 알림에 개인정보 없음, 신고 창구를 앱 안 신고와 문의 이메일로 |
 | 1.1 | 2026-09-26 | 결정 항목 18개 반영(아래). 코드: 녹음 원본 변환 뒤 삭제, 5년 지난 결제 기록 자동 파기 |
