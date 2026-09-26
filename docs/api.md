@@ -38,7 +38,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
    - 앱 코드는 드라이버와 상관없이 같다: `upload.url` + `upload.headers`로 PUT, `preview.url` / 재생 `url`로 GET. 서명 URL은 Range 요청도 된다.
    - 실제 테이프 소리를 들으려면 `brew install ffmpeg` 후 `FFMPEG_MODE=real`.
 3. 개발 로그인: `POST /api/auth/dev { "key": "minkyung", "name": "민경" }` → `accessToken`
-4. 프로토타입 초기 데이터: `POST /api/dev/seed` (Bearer) → 친구 6명, 분류 안 함 2개(안 뜯음, 1개는 링크로 받음), 칸 3개(테이프 8개), 보낸 기록 4개, 크레딧 120 + 내역 5줄, 3분 테이프 2개, 서랍 12. 오디오는 생성한 톤(WAV, 3~6초)이라 바로 재생된다. 다시 부르면 그 계정의 테이프·친구·내역을 지우고 새로 만든다.
+4. 프로토타입 초기 데이터: `POST /api/dev/seed` (Bearer) → 친구 6명, 분류 안 함 2개(안 뜯음, 1개는 링크로 받음), 칸 3개(테이프 8개), 보낸 기록 4개, 크레딧 120 + 내역 5줄, 1분 테이프 2개, 서랍 12. 오디오는 생성한 톤(WAV, 3~6초)이라 바로 재생된다. 다시 부르면 그 계정의 테이프·친구·내역을 지우고 새로 만든다.
    - 친구만 따로: `POST /api/dev/friends { "name": "지현", "starred": true }`
 5. 크레딧: 스토어 결제와 AdMob 콜백은 로컬에서 받을 수 없으니 `POST /api/dev/credits`를 쓴다 ([17. dev](#17-dev-개발-전용)).
 6. 두 기기로 주고받기: 각 기기에서 다른 `key`로 개발 로그인 → 한쪽에서 `POST /api/dev/friends { "userId": "<상대 id>" }`.
@@ -54,7 +54,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 | 형식 | 요청·응답 모두 JSON (`Content-Type: application/json`), 키는 **camelCase** |
 | 날짜 | ISO 8601 UTC 문자열. 예: `"2026-09-25T06:34:46.549Z"`. 화면의 `09.25`는 앱이 기기 시간대로 바꿔 만든다 |
 | ID | 모두 UUID 문자열 |
-| 테이프 종류 | `tapeType`: 정수 `1` · `3` · `5` (분) |
+| 테이프 종류 | `tapeType`: 정수 `15` · `60` · `180` = **녹음 한도(초)**. 15초(무료·무제한) · 1분 · 3분(구매해서 보낼 때 1개씩 차감). 옛 코드 `1`·`3`·`5`는 받지 않는다(`400 VALIDATION_FAILED`) |
 | 인증 | `Authorization: Bearer <accessToken>`. `@공개`라고 적힌 API만 없어도 된다 |
 | 멱등 | 보내기·구매·선물·결제 확인은 `Idempotency-Key` 헤더가 **필수**다 (아래) |
 | 빈 응답 | 돌려줄 게 없으면 `204 No Content` |
@@ -102,9 +102,9 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
   "credits": 120,
   "drawer": { "stored": 11, "cap": 12, "full": false, "unopenedCount": 1 },
   "tapes": [
-    { "tapeType": 1, "qty": null },
-    { "tapeType": 3, "qty": 2 },
-    { "tapeType": 5, "qty": 0 }
+    { "tapeType": 15, "qty": null },
+    { "tapeType": 60, "qty": 2 },
+    { "tapeType": 180, "qty": 0 }
   ],
   "stats": { "receivedCount": 11, "sentCount": 4, "friendCount": 6 },
   "providers": ["kakao"],
@@ -118,7 +118,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 | `drawer.stored` | 보관 중인 테이프 수(분류 안 함 + 모든 칸) |
 | `drawer.full` | `stored >= cap`. 서랍 꽉 참 배너(`fullOn`) |
 | `drawer.unopenedCount` | "분류 안 함"의 안 뜯은 소포 수. 탭바 서랍 레드 점(`hasNew`) — 앱은 탭바 때문에 이 API를 자주 불러도 된다 |
-| `tapes` | 보유 테이프. 1분은 무제한이라 `qty: null`("무료") |
+| `tapes` | 보유 테이프. 항상 15·60·180 순서 3개. 15초는 무제한이라 `qty: null`("무료") |
 | `stats.receivedCount` | 받은 테이프 수 = 보관량 (디자인과 같음) |
 | `stats.sentCount` | 보낸 테이프 수 (링크로 보낸 것 포함) |
 | `stats.friendCount` | 친구 수 (차단한 사람 제외) |
@@ -164,7 +164,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 {
   "id": "delivery uuid",
   "sender": { "userId": "…", "name": "지현", "nickname": null },
-  "tapeType": 3,
+  "tapeType": 60,
   "durationMs": 34000,
   "tag": "birthday",
   "sentAt": "2026-09-24T09:00:00.000Z",
@@ -185,7 +185,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
   "id": "delivery uuid",
   "recipient": { "userId": "…", "name": "엄마", "nickname": "우리 엄마" },
   "linkName": null,
-  "tapeType": 3,
+  "tapeType": 180,
   "durationMs": 120000,
   "tag": "thinking",
   "sentAt": "2026-09-10T09:00:00.000Z",
@@ -211,14 +211,14 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 
 ### LedgerEntry ✅
 ```json
-{ "id": "…", "delta": -30, "reason": "3분 테이프 구매", "kind": "tape_purchase", "createdAt": "…" }
+{ "id": "…", "delta": -30, "reason": "1분 테이프 구매", "kind": "tape_purchase", "createdAt": "…" }
 ```
 | kind | reason 문구 (디자인 원본) |
 |---|---|
 | `signup_gift` | 가입 선물 (가입할 때 10 크레딧) |
 | `ad_reward` | 광고 보상 |
 | `iap` | 크레딧 충전 · ₩1,100 / ₩5,500 / ₩11,000 |
-| `tape_purchase` | 3분 테이프 구매 / 3분 테이프 5개 구매 / 5분 테이프 구매 / 5분 테이프 5개 구매 |
+| `tape_purchase` | 1분 테이프 구매 / 1분 테이프 5개 구매 / 3분 테이프 구매 / 3분 테이프 5개 구매 |
 | `drawer_expand` | 서랍 넓히기 |
 | `gift_sent` | {이름}님에게 선물 |
 | `gift_received` | {이름}님이 선물 (별명이 아니라 원래 이름으로 기록) |
@@ -538,7 +538,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 ```json
 {
   "id": "recording uuid",
-  "tapeType": 3,
+  "tapeType": 180,
   "durationMs": 95000,
   "status": "ready",
   "preview": { "url": "https://…presigned GET…", "expiresAt": "…(10분)" }
@@ -558,16 +558,16 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 ### ✅ `POST /recordings`
 녹음을 멈추면 부른다.
 ```json
-{ "tapeType": 3, "durationMs": 95000, "contentType": "audio/mp4" }
+{ "tapeType": 180, "durationMs": 95000, "contentType": "audio/mp4" }
 ```
 - `contentType`: `audio/mp4` · `audio/m4a` · `audio/x-m4a` · `audio/aac`
-- `durationMs ≤ 한도 + 1,000` (1분 60,000 · 3분 180,000 · 5분 300,000). 넘으면 `400 RECORDING_TOO_LONG`
-- 3·5분 테이프를 가졌는지는 **보낼 때** 확인한다(녹음은 자유)
+- `durationMs ≤ 한도 + 1,000` (15초 15,000 · 1분 60,000 · 3분 180,000). 넘으면 `400 RECORDING_TOO_LONG` (예: 15초 테이프에 16,000은 통과, 17,000은 거절)
+- 1분·3분 테이프를 가졌는지는 **보낼 때** 확인한다(녹음은 자유)
 
 응답 `201` = Recording + `upload`
 ```json
 {
-  "id": "…", "tapeType": 3, "durationMs": 95000, "status": "uploading", "preview": null,
+  "id": "…", "tapeType": 180, "durationMs": 95000, "status": "uploading", "preview": null,
   "upload": {
     "url": "https://…presigned PUT…",
     "method": "PUT",
@@ -593,7 +593,7 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 ## 10. deliveries
 
 ### ✅ `POST /deliveries` 🔑
-라벨 화면(`vLabel`)의 "보내기". 한 트랜잭션에서 **녹음 확인 → 친구·차단 확인 → 보유 테이프 1개 차감(3·5분만, 1분은 무료) → 테이프 생성 → 친구 `lastAt` 갱신**, 끝나면 받는 사람에게 푸시.
+라벨 화면(`vLabel`)의 "보내기". 한 트랜잭션에서 **녹음 확인 → 친구·차단 확인 → 보유 테이프 1개 차감(1분·3분만, 15초는 무료) → 테이프 생성 → 친구 `lastAt` 갱신**, 끝나면 받는 사람에게 푸시.
 
 친구에게:
 ```json
@@ -693,7 +693,7 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
   "state": "available",
   "deliveryId": null,
   "sender": { "userId": "…", "name": "하늘", "nickname": null },
-  "tapeType": 1,
+  "tapeType": 60,
   "durationMs": 34000,
   "tag": "thinking",
   "sentAt": "…",
@@ -728,7 +728,7 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 - 문구는 원본 그대로이고, "앱이 없어도 이 페이지에서 **N일** 동안 들을 수 있어요"의 N은 `expiresAt`까지 남은 날(올림)
 - **앱에서 열기**: `tapeletter://t/{token}`(Android는 `intent://t/{token}#Intent;scheme=tapeletter;package=<ANDROID_PACKAGE_NAME>;…`)을 열고, 1.6초 안에 앱으로 넘어가지 않으면 스토어로 보낸다. **앱은 URL 스킴 `tapeletter`를 등록하고 `tapeletter://t/{token}`을 링크 열기(`GET /share/{token}`)로 처리해야 한다**
 - 상태별 응답: 받을 수 있음 `200` · 이미 받음 `409`(leOn taken) · 만료 `410`(leOn expired) · 없음 `404`(같은 톤의 "테이프를 찾을 수 없어요")
-- 카카오톡·문자 미리보기(Open Graph): `og:title` "○○님이 테이프를 보냈어요", `og:description` "3분 테이프 · 앱이 없어도 …", `og:image` `https://<도메인>/static/og-image.png`(핸드오프 `assets/app-icon.svg`를 600×600 PNG로 변환)
+- 카카오톡·문자 미리보기(Open Graph): `og:title` "○○님이 테이프를 보냈어요", `og:description` "1분 테이프 · 앱이 없어도 …"(테이프 이름: 15초·1분·3분, 라벨 `15 SEC`·`1 MIN`·`3 MIN`), `og:image` `https://<도메인>/static/og-image.png`(핸드오프 `assets/app-icon.svg`를 600×600 PNG로 변환)
 - 보안: 이름은 HTML 이스케이프, `Content-Security-Policy`는 요청마다 새 nonce(`script-src 'nonce-…'`, `style-src 'nonce-…' https://cdn.jsdelivr.net`, `default-src 'none'`), `Referrer-Policy: no-referrer`, `Cache-Control: no-store`
 - 웹은 로그인이 없어 **보낸 사람 본인인지 알 수 없다.** 그래서 웹에서는 `own` 화면을 띄우지 않고, 보낸 사람이 앱으로 링크를 열면 앱이 `LINK_OWN`을 받는다
 
@@ -803,10 +803,10 @@ Apple 심사 가이드라인 1.2(사용자 생성 콘텐츠: 신고·차단·연
 ```json
 {
   "tapes": [
-    { "id": "tape3_1", "tapeType": 3, "qty": 1, "name": "3분 테이프", "price": 30 },
-    { "id": "tape3_5", "tapeType": 3, "qty": 5, "name": "3분 테이프 5개", "price": 120 },
-    { "id": "tape5_1", "tapeType": 5, "qty": 1, "name": "5분 테이프", "price": 50 },
-    { "id": "tape5_5", "tapeType": 5, "qty": 5, "name": "5분 테이프 5개", "price": 200 }
+    { "id": "tape60_1", "tapeType": 60, "qty": 1, "name": "1분 테이프", "price": 30 },
+    { "id": "tape60_5", "tapeType": 60, "qty": 5, "name": "1분 테이프 5개", "price": 120 },
+    { "id": "tape180_1", "tapeType": 180, "qty": 1, "name": "3분 테이프", "price": 50 },
+    { "id": "tape180_5", "tapeType": 180, "qty": 5, "name": "3분 테이프 5개", "price": 200 }
   ],
   "drawer": [ { "id": "drawer_10", "name": "서랍 넓히기", "slots": 10, "price": 100 } ],
   "creditPacks": [
@@ -822,13 +822,13 @@ Apple 심사 가이드라인 1.2(사용자 생성 콘텐츠: 신고·차단·연
 ### ✅ `POST /shop/purchases` 🔑
 구매 확인 시트(`shBuy`)의 "사기". 한 트랜잭션에서 크레딧 조건부 차감 → 테이프 추가 또는 서랍 +10.
 ```json
-{ "productId": "tape3_5" }
+{ "productId": "tape60_5" }
 ```
 응답 `201`
 ```json
 {
   "credits": 0,
-  "tapes": [ { "tapeType": 1, "qty": null }, { "tapeType": 3, "qty": 7 }, { "tapeType": 5, "qty": 0 } ],
+  "tapes": [ { "tapeType": 15, "qty": null }, { "tapeType": 60, "qty": 7 }, { "tapeType": 180, "qty": 0 } ],
   "drawer": { "stored": 11, "cap": 12, "full": false, "unopenedCount": 0 },
   "entry": LedgerEntry
 }
@@ -885,7 +885,7 @@ AdMob 보상형 광고 서버 측 확인(SSV) 콜백. **Google이 부른다.** G
 FCM HTTP v1로 보낸다(`notification` + `data`). 문구의 이름은 **알림을 받는 사람이 붙인 별명**이 있으면 별명, 없으면 원래 이름이다. `notificationsEnabled: false`면 보내지 않는다. 앱이 지워져 무효가 된 토큰은 서버가 지운다. 서버에 FCM 키가 없으면(개발) 보내지 않고 로그만 남긴다.
 | 종류 | title | body | data |
 |---|---|---|---|
-| 테이프 도착 | `{보낸 사람}님이 테이프를 보냈어요` | `{3}분 테이프가 도착했어요. 뜯어서 들어보세요` | `{ "type": "tape", "deliveryId": "…" }` → 서랍 + 소포 화면 |
+| 테이프 도착 | `{보낸 사람}님이 테이프를 보냈어요` | `{15초·1분·3분} 테이프가 도착했어요. 뜯어서 들어보세요` | `{ "type": "tape", "deliveryId": "…" }` → 서랍 + 소포 화면 |
 | 크레딧 선물 | `{보낸 사람}님이 크레딧을 선물했어요` | `{30} 크레딧을 받았어요` | `{ "type": "gift" }` → 크레딧 내역 |
 | 링크 테이프를 받음 | `{받은 사람}님이 테이프를 받았어요` (받은 사람의 실제 이름 또는 내가 붙인 별명. `linkName`은 쓰지 않는다) | `이제 서로 친구예요` | `{ "type": "claimed", "deliveryId": "…" }` → 보낸 테이프 상세 |
 
@@ -901,10 +901,10 @@ FCM HTTP v1로 보낸다(`notification` + `data`). 문구의 이름은 **알림�
 | 항목 | 내용 |
 |---|---|
 | 친구 | 지현★ 엄마★ 민수 하늘 박과장님 은비 (`lastAt`은 프로토타입 날짜) |
-| 분류 안 함 | 지현 3분(안 뜯음), 하늘 1분(안 뜯음, 링크로 받음) |
-| 칸 | 2026 생일(엄마 5분, 민수 1분, 수아 3분, 할머니 1분) · 승진 축하(박과장님 3분, 은비 1분) · 엄마 목소리(엄마 5분, 엄마 3분) |
+| 분류 안 함 | 지현 1분(안 뜯음), 하늘 15초(안 뜯음, 링크로 받음) |
+| 칸 | 2026 생일(엄마 3분, 민수 15초, 수아 1분, 할머니 15초) · 승진 축하(박과장님 1분, 은비 15초) · 엄마 목소리(엄마 3분, 엄마 1분) |
 | 보낸 기록 | 유진(링크 대기) · 엄마(들음) · 민수(안 뜯음) · 박과장님(들음) |
-| 지갑 | 크레딧 120, 내역 5줄(가입 선물 +10, 지현님이 선물 +30, 크레딧 충전 · ₩1,100 +100, 3분 테이프 구매 −30, 광고 보상 +10), 3분 테이프 2개, 서랍 12 |
+| 지갑 | 크레딧 120, 내역 5줄(가입 선물 +10, 지현님이 선물 +30, 크레딧 충전 · ₩1,100 +100, 1분 테이프 구매 −30, 광고 보상 +10), 1분 테이프 2개, 서랍 12 |
 | 오디오 | 생성한 사인파 톤 WAV(3~6초, `audio/wav`) |
 
 ### ✅ `POST /dev/credits`
@@ -1006,6 +1006,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). 문구의 이름은 **알림�
 
 | 날짜 | 내용 |
 |---|---|
+| 2026-09-27 | **테이프 길이 변경(호환 안 됨)**: 1분·3분·5분 → **15초·1분·3분**. `tapeType` 코드가 **녹음 한도(초)**로 바뀐다: `1`→**`15`**(15초, 무료·무제한), `3`→**`60`**(1분), `5`→**`180`**(3분). 색·모양은 자리 그대로 옮긴다. 녹음 한도 15,000·60,000·180,000ms(+1초 오차), 옛 코드는 `400 VALIDATION_FAILED`. Me.tapes·구매 응답 `tapes`는 15·60·180. 상품 ID `tape3_1`·`tape3_5`·`tape5_1`·`tape5_5` → **`tape60_1`·`tape60_5`·`tape180_1`·`tape180_5`**(가격 30·120·50·200 그대로, 이름 "1분 테이프"·"3분 테이프 5개" 등). 원장 문구·푸시 문구·링크 웹 페이지 라벨(`15 SEC`·`1 MIN`·`3 MIN`)도 새 이름. 기존 데이터는 마이그레이션으로 옮긴다. 약관 1.4 |
 | 2026-09-27 | 디자인 v3·v4: `POST /deliveries`의 `linkName`을 **선택 입력**으로(생략·null·빈 문자열 → `null` 저장, 값이 있을 때만 1~8자). `recipientId`가 없으면 링크로 보낸다. SentTape.`linkName`은 `null`일 수 있고, 받은 뒤에는 `recipient`가 채워져 앱은 `recipient`를 우선 표시. 디자인 원본 파일 이름 `TapeletterApp.logic.js`·`TapeletterApp.template.html` |
 | 2026-09-27 | 크레딧 팩 상품 ID 변경: `credits_100`·`credits_550`·`credits_1200` → **`tapeletter.credits_100`·`tapeletter.credits_550`·`tapeletter.credits_1200`**(같은 Apple 개발자 팀의 다른 앱이 옛 ID를 이미 써서 새 앱에 만들 수 없었다). `GET /shop/products`의 `creditPacks[].productId`, `POST /billing/iap`·`POST /dev/credits`의 `productId`가 모두 새 ID다. 옛 ID는 `404 PRODUCT_NOT_FOUND` |
 | 2026-09-26 | 서비스 이름 변경 **cassette → tapeletter**: 앱에서 열기 스킴 `tapeletter://t/{token}`(Android intent의 `scheme=tapeletter`), 웹 페이지 워드마크·`og:site_name`·`<title>`, Android 스토어 기본값 `com.kebi.tapeletter`, 도메인 예시 `tapeletter.lab241.com`. 약관 1.3·처리방침 1.4. API 경로·필드는 그대로 |

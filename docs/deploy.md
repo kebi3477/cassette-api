@@ -50,7 +50,7 @@
 
 ## 1. 처음 설치
 
-권장: Ubuntu Server 24.04 LTS, RAM 8GB 이상, SSD. 녹음 5분이 약 2.4MB라서 디스크는 넉넉히 잡는다.
+권장: Ubuntu Server 24.04 LTS, RAM 8GB 이상, SSD. 가장 긴 3분 녹음이 약 1.4MB라서 디스크는 넉넉히 잡는다.
 
 ```bash
 # 1) Docker Engine + compose 플러그인 (공식 설치 스크립트)

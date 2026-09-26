@@ -37,9 +37,9 @@ describe('개발 시드 POST /dev/seed (e2e)', () => {
         credits: 120,
         drawer: { stored: 10, cap: 12, full: false, unopenedCount: 2 },
         tapes: [
-          { tapeType: 1, qty: null },
-          { tapeType: 3, qty: 2 },
-          { tapeType: 5, qty: 0 },
+          { tapeType: 15, qty: null },
+          { tapeType: 60, qty: 2 },
+          { tapeType: 180, qty: 0 },
         ],
         stats: { receivedCount: 10, sentCount: 4, friendCount: 6 },
       });
@@ -72,8 +72,8 @@ describe('개발 시드 POST /dev/seed (e2e)', () => {
           }) => [x.sender.name, x.opened, x.viaLink, x.tapeType],
         ),
       ).toEqual([
-        ['지현', false, false, 3],
-        ['하늘', false, true, 1],
+        ['지현', false, false, 60],
+        ['하늘', false, true, 15],
       ]);
       expect(
         shelf.groups.map((g: { name: string; items: unknown[] }) => [
@@ -114,7 +114,7 @@ describe('개발 시드 POST /dev/seed (e2e)', () => {
         ]),
       ).toEqual([
         ['광고 보상', 10],
-        ['3분 테이프 구매', -30],
+        ['1분 테이프 구매', -30],
         ['크레딧 충전 · ₩1,100', 100],
         ['지현님이 선물', 30],
         ['가입 선물', 10],

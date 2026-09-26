@@ -19,7 +19,7 @@ const base = (over: Partial<Delivery>): Delivery =>
     position: null,
     suppressed: false,
     deletedAt: null,
-    recording: { tapeType: 3, durationMs: 34000 },
+    recording: { tapeType: 60, durationMs: 34000 },
     ...over,
   }) as Delivery;
 

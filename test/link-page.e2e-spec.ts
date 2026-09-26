@@ -19,10 +19,10 @@ describe('링크 웹 페이지 /t/{token} (e2e)', () => {
   const makeLink = async (name: string) => {
     const a = await devLogin(app, name);
     await ds.query(
-      `INSERT INTO tape_inventory (user_id, tape_type, qty) VALUES ($1, 3, 1)`,
+      `INSERT INTO tape_inventory (user_id, tape_type, qty) VALUES ($1, 60, 1)`,
       [a.user.id],
     );
-    const rec = await readyRecording(app, a.accessToken, 3);
+    const rec = await readyRecording(app, a.accessToken, 60);
     const sent = await request(server())
       .post('/api/deliveries')
       .set(bearer(a.accessToken))
@@ -61,7 +61,7 @@ describe('링크 웹 페이지 /t/{token} (e2e)', () => {
       `<meta property="og:url" content="https://tapeletter.test/t/${token}">`,
     );
     expect(res.text).toContain(
-      '3분 테이프 · 앱이 없어도 이 페이지에서 7일 동안 들을 수 있어요',
+      '1분 테이프 · 앱이 없어도 이 페이지에서 7일 동안 들을 수 있어요',
     );
 
     // CSP: 요청마다 nonce, 인라인 스크립트·스타일은 그 nonce로만

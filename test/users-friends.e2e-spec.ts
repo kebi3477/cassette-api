@@ -37,9 +37,9 @@ describe('개발 로그인 → 내 정보 → 이름 수정 → 친구 즐겨찾
       credits: 10,
       drawer: { stored: 0, cap: 12, full: false },
       tapes: [
-        { tapeType: 1, qty: null },
-        { tapeType: 3, qty: 0 },
-        { tapeType: 5, qty: 0 },
+        { tapeType: 15, qty: null },
+        { tapeType: 60, qty: 0 },
+        { tapeType: 180, qty: 0 },
       ],
       stats: { receivedCount: 0, sentCount: 0, friendCount: 0 },
       notificationsEnabled: true,

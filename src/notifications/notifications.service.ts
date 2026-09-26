@@ -1,3 +1,5 @@
+import type { TapeType } from '../recordings/entities/recording.entity.js';
+import { TAPE_NAMES } from '../recordings/recordings.constants.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -11,7 +13,7 @@ export interface TapeDeliveredEvent {
   recipientId: string;
   senderId: string;
   senderName: string;
-  tapeType: 1 | 3 | 5;
+  tapeType: TapeType;
 }
 
 export interface LinkClaimedEvent {
@@ -66,7 +68,7 @@ export class NotificationsService {
     );
     return this.push(e.recipientId, {
       title: `${name}님이 테이프를 보냈어요`,
-      body: `${e.tapeType}분 테이프가 도착했어요. 뜯어서 들어보세요`,
+      body: `${TAPE_NAMES[e.tapeType]} 테이프가 도착했어요. 뜯어서 들어보세요`,
       data: { type: 'tape', deliveryId: e.deliveryId },
     });
   }

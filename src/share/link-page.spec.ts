@@ -24,7 +24,7 @@ const ctx: PageContext = {
 
 const preview = {
   senderName: '<b>&\'"',
-  tapeType: 3 as const,
+  tapeType: 60 as const,
   durationMs: 34000,
   tag: null,
   sentAt: '2026-09-25T03:00:00Z',
@@ -32,6 +32,19 @@ const preview = {
 };
 
 describe('링크 웹 페이지 (webOn · leOn)', () => {
+  it('테이프 종류(초)별 라벨·이름: 15 SEC·15초, 1 MIN·1분, 3 MIN·3분', () => {
+    for (const [tapeType, len, name] of [
+      [15, '15 SEC', '15초'],
+      [60, '1 MIN', '1분'],
+      [180, '3 MIN', '3분'],
+    ] as const) {
+      const html = renderTapePage('tok', { ...preview, tapeType }, ctx);
+      expect(html).toContain(`class="tape t${tapeType}"`);
+      expect(html).toContain(`<span class="len">${len}</span>`);
+      expect(html).toContain(`${name} 테이프 · 09.25`);
+    }
+  });
+
   it('이름은 본문·OG·JSON 어디서든 이스케이프한다', () => {
     expect(escapeHtml(`<a href="x">'&`)).toBe(
       '&lt;a href=&quot;x&quot;&gt;&#39;&amp;',
@@ -49,13 +62,13 @@ describe('링크 웹 페이지 (webOn · leOn)', () => {
     );
   });
 
-  it('디자인 문구·구성: 제목, 3분 테이프 · MM.DD, 소포, 테이프, 앱 안내, 남은 기간', () => {
+  it('디자인 문구·구성: 제목, 1분 테이프 · MM.DD, 소포, 테이프, 앱 안내, 남은 기간', () => {
     const html = renderTapePage('tok', { ...preview, senderName: '민경' }, ctx);
     expect(html).toContain('민경님이<br>테이프를 보냈어요');
-    expect(html).toContain('3분 테이프 · 09.25');
+    expect(html).toContain('1분 테이프 · 09.25');
     expect(html).toContain('탭해서 뜯기');
-    expect(html).toContain('class="tape t3"');
-    expect(html).toContain('<span class="len">3 MIN</span>');
+    expect(html).toContain('class="tape t60"');
+    expect(html).toContain('<span class="len">1 MIN</span>');
     expect(html).toContain('0:34');
     expect(html).toContain('앱에서 답장을 보낼 수 있어요');
     expect(html).toContain(

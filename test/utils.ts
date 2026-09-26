@@ -99,7 +99,7 @@ export const idem = () => ({ 'Idempotency-Key': `k-${randomUUID()}` });
 export async function readyRecording(
   app: INestApplication<App>,
   accessToken: string,
-  tapeType: 1 | 3 | 5 = 1,
+  tapeType: 15 | 60 | 180 = 15,
   durationMs = 4000,
 ): Promise<string> {
   const server = app.getHttpServer();

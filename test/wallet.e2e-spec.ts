@@ -25,7 +25,7 @@ describe('WalletService (e2e, 실제 DB)', () => {
           userId: user.id,
           delta: -30,
           kind: 'tape_purchase',
-          reason: '3분 테이프 구매',
+          reason: '1분 테이프 구매',
         }),
       ),
     ).rejects.toMatchObject({

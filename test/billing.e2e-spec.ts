@@ -178,7 +178,7 @@ describe('billing (e2e)', () => {
         .post('/api/shop/purchases')
         .set(as(u))
         .set(idem())
-        .send({ productId: 'tape5_1' })
+        .send({ productId: 'tape180_1' })
         .expect(201); // 60
 
       await request(server())

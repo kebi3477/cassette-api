@@ -56,7 +56,7 @@ describe('로컬 저장소 드라이버 + passthrough (실제 HTTP): 업로드 �
     const created = await request(app.getHttpServer())
       .post('/api/recordings')
       .set(bearer(a.accessToken))
-      .send({ tapeType: 1, durationMs: 4321, contentType: 'audio/mp4' })
+      .send({ tapeType: 15, durationMs: 4321, contentType: 'audio/mp4' })
       .expect(201);
     const upload = created.body.upload as {
       url: string;

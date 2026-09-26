@@ -45,7 +45,7 @@ describe('notifications · 정리 작업 · 탈퇴 연결 해제 (e2e)', () => {
     fcm.invalidTokens.add('token-b-dead-0000001');
     fcm.sent = [];
 
-    const rec = await readyRecording(app, a.accessToken, 1);
+    const rec = await readyRecording(app, a.accessToken, 15);
     const sent = await request(server())
       .post('/api/deliveries')
       .set(bearer(a.accessToken))
@@ -56,7 +56,7 @@ describe('notifications · 정리 작업 · 탈퇴 연결 해제 (e2e)', () => {
       expect(fcm.sent).toContainEqual({
         token: 'token-b-valid-000001',
         title: '하늘님이 테이프를 보냈어요',
-        body: '1분 테이프가 도착했어요. 뜯어서 들어보세요',
+        body: '15초 테이프가 도착했어요. 뜯어서 들어보세요',
         data: { type: 'tape', deliveryId: sent.body.id },
       }),
     );
@@ -75,7 +75,7 @@ describe('notifications · 정리 작업 · 탈퇴 연결 해제 (e2e)', () => {
       .send({ token: 'token-a-000000000001', platform: 'ios' })
       .expect(204);
     const c = await devLogin(app, '유진');
-    const rec2 = await readyRecording(app, a.accessToken, 1);
+    const rec2 = await readyRecording(app, a.accessToken, 15);
     const link = await request(server())
       .post('/api/deliveries')
       .set(bearer(a.accessToken))
@@ -128,7 +128,7 @@ describe('notifications · 정리 작업 · 탈퇴 연결 해제 (e2e)', () => {
     const created = await request(server())
       .post('/api/recordings')
       .set(bearer(u.accessToken))
-      .send({ tapeType: 1, durationMs: 3000, contentType: 'audio/mp4' })
+      .send({ tapeType: 15, durationMs: 3000, contentType: 'audio/mp4' })
       .expect(201);
     const key = storage.keyOf(created.body.upload.url);
     storage.put(key, Buffer.from('half'));

@@ -54,42 +54,51 @@ const it = (
 });
 
 const INBOX = [
-  { ...it('지현', '09.24', 3), viaLink: false },
-  { ...it('하늘', '09.23', 1, '그냥'), viaLink: true },
+  { ...it('지현', '09.24', 60), viaLink: false },
+  { ...it('하늘', '09.23', 15, '그냥'), viaLink: true },
 ];
 const GROUPS = [
   {
     name: '2026 생일',
     items: [
-      it('엄마', '03.14', 5),
-      it('민수', '03.14', 1),
-      it('수아', '03.15', 3),
-      it('할머니', '03.14', 1),
+      it('엄마', '03.14', 180),
+      it('민수', '03.14', 15),
+      it('수아', '03.15', 60),
+      it('할머니', '03.14', 15),
     ],
   },
   {
     name: '승진 축하',
-    items: [it('박과장님', '06.02', 3, '축하'), it('은비', '06.03', 1, '축하')],
+    items: [
+      it('박과장님', '06.02', 60, '축하'),
+      it('은비', '06.03', 15, '축하'),
+    ],
   },
   {
     name: '엄마 목소리',
-    items: [it('엄마', '01.01', 5, '그냥'), it('엄마', '05.08', 3, '그냥')],
+    items: [it('엄마', '01.01', 180, '그냥'), it('엄마', '05.08', 60, '그냥')],
   },
 ];
 const SENT = [
-  { to: '유진', date: '09.22', type: 1 as TapeType, link: true, opened: null },
+  { to: '유진', date: '09.22', type: 15 as TapeType, link: true, opened: null },
   {
     to: '엄마',
     date: '09.10',
-    type: 3 as TapeType,
+    type: 60 as TapeType,
     link: false,
     opened: '09.11',
   },
-  { to: '민수', date: '08.30', type: 1 as TapeType, link: false, opened: null },
+  {
+    to: '민수',
+    date: '08.30',
+    type: 15 as TapeType,
+    link: false,
+    opened: null,
+  },
   {
     to: '박과장님',
     date: '06.01',
-    type: 1 as TapeType,
+    type: 15 as TapeType,
     link: false,
     opened: '06.02',
   },
@@ -99,7 +108,7 @@ const LEDGER: { date: string; why: string; amt: number; kind: LedgerKind }[] = [
   { date: '09.01', why: '가입 선물', amt: 10, kind: 'signup_gift' },
   { date: '09.12', why: '지현님이 선물', amt: 30, kind: 'gift_received' },
   { date: '09.18', why: '크레딧 충전 · ₩1,100', amt: 100, kind: 'iap' },
-  { date: '09.20', why: '3분 테이프 구매', amt: -30, kind: 'tape_purchase' },
+  { date: '09.20', why: '1분 테이프 구매', amt: -30, kind: 'tape_purchase' },
   { date: '09.24', why: '광고 보상', amt: 10, kind: 'ad_reward' },
 ];
 const TONES: Record<string, number> = {
@@ -126,7 +135,7 @@ export interface SeedResult {
 /**
  * 개발 시드: 로그인한 사용자의 데이터를 지우고 프로토타입 초기 상태로 만든다.
  * 친구 6명, 분류 안 함 2개(안 뜯음, 1개는 링크로 받음), 칸 3개 8개, 보낸 기록 4개,
- * 크레딧 120 + 원장 5줄, 3분 테이프 2개, 서랍 12. 오디오는 생성한 사인파 WAV다.
+ * 크레딧 120 + 원장 5줄, 1분 테이프 2개, 서랍 12. 오디오는 생성한 사인파 WAV다.
  */
 @Injectable()
 export class SeedService {
@@ -277,7 +286,7 @@ export class SeedService {
           });
         }
 
-        // 크레딧 원장 5줄 (합계 120), 3분 테이프 2개
+        // 크레딧 원장 5줄 (합계 120), 1분 테이프 2개
         let balance = 0;
         for (const l of LEDGER) {
           balance += l.amt;
@@ -291,8 +300,8 @@ export class SeedService {
           });
         }
         await m.insert(TapeInventory, [
-          { userId: meId, tapeType: 3, qty: 2 },
-          { userId: meId, tapeType: 5, qty: 0 },
+          { userId: meId, tapeType: 60, qty: 2 },
+          { userId: meId, tapeType: 180, qty: 0 },
         ]);
         return purged;
       });

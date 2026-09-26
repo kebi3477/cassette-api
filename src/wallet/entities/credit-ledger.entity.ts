@@ -47,7 +47,7 @@ export class CreditLedger {
   @Column({ type: 'varchar', length: 32 })
   kind: LedgerKind;
 
-  /** 크레딧 내역에 보이는 문구. 예: "가입 선물", "3분 테이프 구매", "지현님이 선물" */
+  /** 크레딧 내역에 보이는 문구. 예: "가입 선물", "1분 테이프 구매", "지현님이 선물" */
   @Column({ type: 'varchar', length: 64 })
   reason: string;
 

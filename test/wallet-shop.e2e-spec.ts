@@ -36,10 +36,10 @@ describe('wallet · shop (e2e)', () => {
     expect(
       res.body.tapes.map((p: { id: string; price: number }) => [p.id, p.price]),
     ).toEqual([
-      ['tape3_1', 30],
-      ['tape3_5', 120],
-      ['tape5_1', 50],
-      ['tape5_5', 200],
+      ['tape60_1', 30],
+      ['tape60_5', 120],
+      ['tape180_1', 50],
+      ['tape180_5', 200],
     ]);
     expect(res.body.drawer).toEqual([
       { id: 'drawer_10', name: '서랍 넓히기', slots: 10, price: 100 },
@@ -65,27 +65,38 @@ describe('wallet · shop (e2e)', () => {
       .post('/api/shop/purchases')
       .set(as(u))
       .set(idem())
-      .send({ productId: 'tape3_1' })
+      .send({ productId: 'tape60_1' })
       .expect(402);
     expect(poor.body).toMatchObject({ code: 'INSUFFICIENT_CREDITS', need: 20 });
+
+    // 옛 상품 ID(1·3·5분 시절)는 없다
+    for (const productId of ['tape3_1', 'tape5_5']) {
+      const old = await request(server())
+        .post('/api/shop/purchases')
+        .set(as(u))
+        .set(idem())
+        .send({ productId })
+        .expect(404);
+      expect(old.body.code).toBe('PRODUCT_NOT_FOUND');
+    }
 
     await addCredits(u, 310); // 320
     const tapes = await request(server())
       .post('/api/shop/purchases')
       .set(as(u))
       .set(idem())
-      .send({ productId: 'tape3_5' })
+      .send({ productId: 'tape60_5' })
       .expect(201);
     expect(tapes.body).toMatchObject({
       credits: 200,
       tapes: [
-        { tapeType: 1, qty: null },
-        { tapeType: 3, qty: 5 },
-        { tapeType: 5, qty: 0 },
+        { tapeType: 15, qty: null },
+        { tapeType: 60, qty: 5 },
+        { tapeType: 180, qty: 0 },
       ],
       entry: {
         delta: -120,
-        reason: '3분 테이프 5개 구매',
+        reason: '1분 테이프 5개 구매',
         kind: 'tape_purchase',
       },
     });
@@ -113,7 +124,7 @@ describe('wallet · shop (e2e)', () => {
       .expect(200);
     expect(ledger.body.items.map((l: { reason: string }) => l.reason)).toEqual([
       '서랍 넓히기',
-      '3분 테이프 5개 구매',
+      '1분 테이프 5개 구매',
     ]);
     const next = await request(server())
       .get(`/api/wallet/ledger?limit=10&cursor=${ledger.body.nextCursor}`)
@@ -135,7 +146,7 @@ describe('wallet · shop (e2e)', () => {
           .post('/api/shop/purchases')
           .set(as(u))
           .set(idem())
-          .send({ productId: 'tape3_1' }),
+          .send({ productId: 'tape60_1' }),
       ),
     );
     expect(results.filter((r) => r.status === 201)).toHaveLength(3);
@@ -145,7 +156,7 @@ describe('wallet · shop (e2e)', () => {
       .set(as(u))
       .expect(200);
     expect(me.body.credits).toBe(10);
-    expect(me.body.tapes[1]).toEqual({ tapeType: 3, qty: 3 });
+    expect(me.body.tapes[1]).toEqual({ tapeType: 60, qty: 3 });
   });
 
   it('같은 Idempotency-Key로 다시 사면 한 번만 차감된다', async () => {
@@ -156,13 +167,13 @@ describe('wallet · shop (e2e)', () => {
       .post('/api/shop/purchases')
       .set(as(u))
       .set(key)
-      .send({ productId: 'tape3_1' })
+      .send({ productId: 'tape60_1' })
       .expect(201);
     const again = await request(server())
       .post('/api/shop/purchases')
       .set(as(u))
       .set(key)
-      .send({ productId: 'tape3_1' })
+      .send({ productId: 'tape60_1' })
       .expect(201);
     expect(again.headers['idempotent-replayed']).toBe('true');
     expect((await wallet(u)).credits).toBe(70);

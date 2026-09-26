@@ -12,8 +12,11 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity.js';
 
-export const TAPE_TYPES = [1, 3, 5] as const;
+/** 테이프 종류 코드 = 녹음 한도(초). 15초·1분·3분 */
+export const TAPE_TYPES = [15, 60, 180] as const;
 export type TapeType = (typeof TAPE_TYPES)[number];
+/** 무료·무제한 테이프 (재고 없음) */
+export const FREE_TAPE_TYPE = 15 satisfies TapeType;
 
 export const RECORDING_STATUSES = [
   'uploading',
@@ -28,7 +31,7 @@ export type RecordingStatus = (typeof RECORDING_STATUSES)[number];
  * 보낸 사람이 탈퇴해도 받은 사람의 테이프는 남아야 해서 owner_id는 SET NULL이다.
  */
 @Entity('recordings')
-@Check('CHK_recordings_tape_type', '"tape_type" IN (1, 3, 5)')
+@Check('CHK_recordings_tape_type', '"tape_type" IN (15, 60, 180)')
 @Check('CHK_recordings_duration_positive', '"duration_ms" > 0')
 export class Recording {
   @PrimaryGeneratedColumn('uuid')

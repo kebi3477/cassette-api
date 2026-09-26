@@ -33,40 +33,47 @@ describe('recordings (e2e, 메모리 S3 + 가짜 ffmpeg + 로컬 Redis 큐)', ()
       .set(bearer(me.accessToken))
       .send(body);
 
-  it('테이프 한도를 넘으면 RECORDING_TOO_LONG (1분 60초 + 1초 오차)', async () => {
-    const res = await create({
-      tapeType: 1,
-      durationMs: 61_001,
-      contentType: 'audio/mp4',
-    }).expect(400);
-    expect(res.body.code).toBe('RECORDING_TOO_LONG');
-    await create({
-      tapeType: 1,
-      durationMs: 61_000,
-      contentType: 'audio/mp4',
-    }).expect(201);
-    await create({
-      tapeType: 3,
-      durationMs: 180_000,
-      contentType: 'audio/mp4',
-    }).expect(201);
-    const five = await create({
-      tapeType: 5,
-      durationMs: 302_000,
-      contentType: 'audio/mp4',
-    }).expect(400);
-    expect(five.body.code).toBe('RECORDING_TOO_LONG');
+  it('테이프 한도를 넘으면 RECORDING_TOO_LONG (종류 코드 = 초, + 1초 오차)', async () => {
+    const ok = (tapeType: number, durationMs: number) =>
+      create({ tapeType, durationMs, contentType: 'audio/mp4' }).expect(201);
+    const tooLong = async (tapeType: number, durationMs: number) => {
+      const res = await create({
+        tapeType,
+        durationMs,
+        contentType: 'audio/mp4',
+      }).expect(400);
+      expect(res.body.code).toBe('RECORDING_TOO_LONG');
+    };
+    await ok(15, 15_000);
+    await ok(15, 16_000);
+    await tooLong(15, 16_001);
+    await tooLong(15, 17_000);
+    await ok(60, 61_000);
+    await tooLong(60, 61_001);
+    await ok(180, 181_000);
+    await tooLong(180, 181_001);
+  });
+
+  it('옛 종류 코드(1·3·5)는 받지 않는다', async () => {
+    for (const tapeType of [1, 3, 5, 300]) {
+      const res = await create({
+        tapeType,
+        durationMs: 1000,
+        contentType: 'audio/mp4',
+      }).expect(400);
+      expect(res.body.code).toBe('VALIDATION_FAILED');
+    }
   });
 
   it('업로드 URL 발급 → 업로드 → complete → 변환 → ready (실제 길이로 갱신, 미리 듣기 URL)', async () => {
     const created = await create({
-      tapeType: 3,
+      tapeType: 60,
       durationMs: 5000,
       contentType: 'audio/mp4',
     }).expect(201);
     expect(created.body).toMatchObject({
       status: 'uploading',
-      tapeType: 3,
+      tapeType: 60,
       durationMs: 5000,
       preview: null,
       upload: { method: 'PUT', headers: { 'Content-Type': 'audio/mp4' } },
@@ -101,7 +108,7 @@ describe('recordings (e2e, 메모리 S3 + 가짜 ffmpeg + 로컬 Redis 큐)', ()
   it('변환이 끝까지 실패하면 failed → retry로 다시 변환', async () => {
     ffmpeg.fail = true;
     const created = await create({
-      tapeType: 1,
+      tapeType: 15,
       durationMs: 3000,
       contentType: 'audio/mp4',
     }).expect(201);
@@ -121,10 +128,10 @@ describe('recordings (e2e, 메모리 S3 + 가짜 ffmpeg + 로컬 Redis 큐)', ()
   }, 30_000);
 
   it('변환 후 실제 길이가 한도를 넘으면 failed', async () => {
-    ffmpeg.durationMs = 65_000;
+    ffmpeg.durationMs = 17_000;
     const created = await create({
-      tapeType: 1,
-      durationMs: 59_000,
+      tapeType: 15,
+      durationMs: 14_000,
       contentType: 'audio/mp4',
     }).expect(201);
     storage.put(storage.keyOf(created.body.upload.url), Buffer.from('raw'));
@@ -137,7 +144,7 @@ describe('recordings (e2e, 메모리 S3 + 가짜 ffmpeg + 로컬 Redis 큐)', ()
 
   it('남의 녹음은 RECORDING_NOT_FOUND', async () => {
     const created = await create({
-      tapeType: 1,
+      tapeType: 15,
       durationMs: 3000,
       contentType: 'audio/mp4',
     }).expect(201);
@@ -151,7 +158,7 @@ describe('recordings (e2e, 메모리 S3 + 가짜 ffmpeg + 로컬 Redis 큐)', ()
 
   it('변환이 끝나면 원본(raw)을 지운다. 지우기에 실패해도 ready이고 정리 작업이 다시 지운다', async () => {
     const created = await create({
-      tapeType: 1,
+      tapeType: 15,
       durationMs: 3000,
       contentType: 'audio/mp4',
     }).expect(201);
@@ -167,7 +174,7 @@ describe('recordings (e2e, 메모리 S3 + 가짜 ffmpeg + 로컬 Redis 큐)', ()
 
     // 삭제 실패: ready는 유지, raw는 남음 → 정리 작업이 지운다
     const second = await create({
-      tapeType: 1,
+      tapeType: 15,
       durationMs: 3000,
       contentType: 'audio/mp4',
     }).expect(201);

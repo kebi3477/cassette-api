@@ -1,9 +1,10 @@
 import type { AuthProvider } from '../../auth/entities/auth-identity.entity.js';
+import type { TapeType } from '../../recordings/entities/recording.entity.js';
 
 export interface TapeStock {
-  /** 1 | 3 | 5 (분) */
-  tapeType: 1 | 3 | 5;
-  /** 보유 개수. 1분은 무제한이라 null */
+  /** 15 | 60 | 180 (녹음 한도, 초) */
+  tapeType: TapeType;
+  /** 보유 개수. 15초는 무제한이라 null */
   qty: number | null;
 }
 

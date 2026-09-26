@@ -28,10 +28,16 @@ export interface CreditPack {
 }
 
 export const TAPE_PRODUCTS: TapeProduct[] = [
-  { id: 'tape3_1', tapeType: 3, qty: 1, name: '3분 테이프', price: 30 },
-  { id: 'tape3_5', tapeType: 3, qty: 5, name: '3분 테이프 5개', price: 120 },
-  { id: 'tape5_1', tapeType: 5, qty: 1, name: '5분 테이프', price: 50 },
-  { id: 'tape5_5', tapeType: 5, qty: 5, name: '5분 테이프 5개', price: 200 },
+  { id: 'tape60_1', tapeType: 60, qty: 1, name: '1분 테이프', price: 30 },
+  { id: 'tape60_5', tapeType: 60, qty: 5, name: '1분 테이프 5개', price: 120 },
+  { id: 'tape180_1', tapeType: 180, qty: 1, name: '3분 테이프', price: 50 },
+  {
+    id: 'tape180_5',
+    tapeType: 180,
+    qty: 5,
+    name: '3분 테이프 5개',
+    price: 200,
+  },
 ];
 
 export const DRAWER_PRODUCTS: DrawerProduct[] = [

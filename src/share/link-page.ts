@@ -1,4 +1,5 @@
 import type { WebPreview } from './dto/share.response.js';
+import type { TapeType } from '../recordings/entities/recording.entity.js';
 
 /**
  * 링크 웹 페이지 (`GET /t/{token}`). 앱이 없는 사람이 카톡·문자로 받은 링크를 열면 보는 첫 화면이다.
@@ -15,30 +16,33 @@ import type { WebPreview } from './dto/share.response.js';
 export const SUIT_CSS =
   'https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css';
 
-/** 테이프 종류별 색·이름·릴 크기 (TapeletterApp.logic.js의 T) */
+/**
+ * 테이프 종류별 색·이름·릴 크기 (TapeletterApp.logic.js의 T).
+ * 종류 코드는 녹음 한도(초)다. 원본의 1·3·5 자리가 15초·1분·3분으로 옮겨 왔다(색·모양은 자리 그대로)
+ */
 const TAPES = {
-  1: {
+  15: {
     shell: '#1E1E1E',
     edge: '#161616',
     band: '#E5402B',
-    len: '1 MIN',
-    name: '1분',
+    len: '15 SEC',
+    name: '15초',
     full: 50,
   },
-  3: {
+  60: {
     shell: '#E9E5DC',
     edge: '#D9D4C9',
     band: '#2E6BD6',
-    len: '3 MIN',
-    name: '3분',
+    len: '1 MIN',
+    name: '1분',
     full: 58,
   },
-  5: {
+  180: {
     shell: '#76858F',
     edge: '#66747E',
     band: '#111111',
-    len: '5 MIN',
-    name: '5분',
+    len: '3 MIN',
+    name: '3분',
     full: 66,
   },
 } as const;
@@ -189,9 +193,9 @@ const WEB_CSS = `
 /* ---- Tape.template.html (320×204) ---- */
 const TAPE_CSS = `
 .tape{width:320px;height:204px;position:relative}
-.tape.t1{--shell:#1E1E1E;--edge:#161616;--band:#E5402B}
-.tape.t3{--shell:#E9E5DC;--edge:#D9D4C9;--band:#2E6BD6}
-.tape.t5{--shell:#76858F;--edge:#66747E;--band:#111111}
+.tape.t15{--shell:#1E1E1E;--edge:#161616;--band:#E5402B}
+.tape.t60{--shell:#E9E5DC;--edge:#D9D4C9;--band:#2E6BD6}
+.tape.t180{--shell:#76858F;--edge:#66747E;--band:#111111}
 .tape .shell{position:absolute;inset:0;border-radius:10px;background:var(--shell);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -2px 0 rgba(0,0,0,.22),inset 1px 0 0 rgba(255,255,255,.08),0 1px 2px rgba(0,0,0,.25),0 16px 32px -8px rgba(0,0,0,.28)}
 .tape .label{position:absolute;left:14px;right:14px;top:12px;height:134px;border-radius:6px;background:#F7F5F0;box-shadow:0 0 0 1px rgba(0,0,0,.06);overflow:hidden}
 .tape .band{position:absolute;left:0;right:0;top:0;height:22px;background:var(--band);display:flex;align-items:center;justify-content:space-between;padding:0 10px}
@@ -205,9 +209,9 @@ const TAPE_CSS = `
 .tape .pack{position:absolute;top:28px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,#6B452C 0 38%,#4A2E1D 62%,#3A2315 90%,#2A180E);box-shadow:0 0 0 1px rgba(0,0,0,.4);transition:width .3s linear,height .3s linear;width:30px;height:30px}
 .tape .pack.l{left:30px}
 .tape .pack.r{left:146px}
-.tape.t1 .pack.l{width:50px;height:50px}
-.tape.t3 .pack.l{width:58px;height:58px}
-.tape.t5 .pack.l{width:66px;height:66px}
+.tape.t15 .pack.l{width:50px;height:50px}
+.tape.t60 .pack.l{width:58px;height:58px}
+.tape.t180 .pack.l{width:66px;height:66px}
 .tape .glass{position:absolute;left:56px;right:56px;top:9px;bottom:9px;border-radius:2px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
 .tape .glass .t{position:absolute;left:4px;right:4px;top:4px;height:5px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.45) 0 1px,transparent 1px 7px)}
 .tape .glass .b{position:absolute;left:4px;right:4px;bottom:4px;height:3px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.3) 0 1px,transparent 1px 7px)}
@@ -308,7 +312,7 @@ function kraftTag(top: string, name: string): string {
   return `<div class="tag"><div class="k">${escapeHtml(top)}</div><div class="n">${escapeHtml(name)}</div></div>`;
 }
 
-function tapeHtml(type: 1 | 3 | 5, title: string, from: string): string {
+function tapeHtml(type: TapeType, title: string, from: string): string {
   const t = TAPES[type];
   const spokes = '<b></b>'.repeat(6);
   const hub = (side: string) =>

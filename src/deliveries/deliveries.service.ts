@@ -9,7 +9,10 @@ import { Block } from '../friends/entities/block.entity.js';
 import { Friendship } from '../friends/entities/friendship.entity.js';
 import { UNNAMED } from '../friends/friends.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { Recording } from '../recordings/entities/recording.entity.js';
+import {
+  FREE_TAPE_TYPE,
+  Recording,
+} from '../recordings/entities/recording.entity.js';
 import { AUDIO_URL_TTL_SEC } from '../recordings/recordings.constants.js';
 import { ShelfService } from '../shelf/shelf.service.js';
 import { StorageService } from '../storage/storage.service.js';
@@ -66,7 +69,7 @@ export class DeliveriesService {
 
   /**
    * 테이프 보내기. 한 트랜잭션에서
-   * 녹음 확인 → (친구면) 친구·차단 확인 → 3·5분 테이프 1개 차감 → 테이프 생성 → 친구 lastAt 갱신.
+   * 녹음 확인 → (친구면) 친구·차단 확인 → 1분·3분 테이프 1개 차감(15초는 무료) → 테이프 생성 → 친구 lastAt 갱신.
    */
   async send(senderId: string, dto: CreateDeliveryDto): Promise<SentTape> {
     // 새 친구 링크의 이름은 선택 입력이다. 생략·null·빈 문자열(공백만)은 null로 저장하고,
@@ -120,7 +123,7 @@ export class DeliveriesService {
         }
       }
 
-      if (recording.tapeType !== 1) {
+      if (recording.tapeType !== FREE_TAPE_TYPE) {
         const taken = await m
           .createQueryBuilder()
           .update(TapeInventory)

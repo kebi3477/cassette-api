@@ -26,13 +26,13 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
   });
   afterAll(() => app.close());
 
-  const giveTapes = (userId: string, tapeType: 3 | 5, qty: number) =>
+  const giveTapes = (userId: string, tapeType: 60 | 180, qty: number) =>
     ds.query(
       `INSERT INTO tape_inventory (user_id, tape_type, qty) VALUES ($1, $2, $3)
        ON CONFLICT (user_id, tape_type) DO UPDATE SET qty = EXCLUDED.qty`,
       [userId, tapeType, qty],
     );
-  const qtyOf = async (userId: string, tapeType: 3 | 5) =>
+  const qtyOf = async (userId: string, tapeType: 60 | 180) =>
     (
       (await ds.query(
         'SELECT qty FROM tape_inventory WHERE user_id = $1 AND tape_type = $2',
@@ -92,15 +92,43 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
       expect(res.body.code).toBe('NOT_FRIEND');
     });
 
-    it('3분 테이프가 없으면 NO_TAPE_LEFT, 있으면 1개 차감 (같은 키로 재시도해도 한 번만)', async () => {
-      const rec = await readyRecording(app, a.accessToken, 3, 120_000);
+    it('3분 테이프는 1개 차감, 15초 테이프는 재고 없이 무료로 보낸다', async () => {
+      const three = await readyRecording(app, a.accessToken, 180, 170_000);
+      const none = await send(a, {
+        recordingId: three,
+        recipientId: b.user.id,
+      }).expect(409);
+      expect(none.body).toMatchObject({ code: 'NO_TAPE_LEFT', tapeType: 180 });
+      await giveTapes(a.user.id, 180, 1);
+      const sent = await send(a, {
+        recordingId: three,
+        recipientId: b.user.id,
+      }).expect(201);
+      expect(sent.body.tapeType).toBe(180);
+      expect(await qtyOf(a.user.id, 180)).toBe(0);
+
+      const before = await request(server()).get('/api/users/me').set(as(a));
+      const free = await readyRecording(app, a.accessToken, 15, 15_000);
+      const freeSent = await send(a, {
+        recordingId: free,
+        recipientId: b.user.id,
+      }).expect(201);
+      expect(freeSent.body.tapeType).toBe(15);
+      const after = await request(server()).get('/api/users/me').set(as(a));
+      expect(after.body.tapes).toEqual(before.body.tapes);
+      expect(after.body.tapes[0]).toEqual({ tapeType: 15, qty: null });
+      expect(after.body.credits).toBe(before.body.credits);
+    });
+
+    it('1분 테이프가 없으면 NO_TAPE_LEFT, 있으면 1개 차감 (같은 키로 재시도해도 한 번만)', async () => {
+      const rec = await readyRecording(app, a.accessToken, 60, 50_000);
       const none = await send(a, {
         recordingId: rec,
         recipientId: b.user.id,
       }).expect(409);
-      expect(none.body).toMatchObject({ code: 'NO_TAPE_LEFT', tapeType: 3 });
+      expect(none.body).toMatchObject({ code: 'NO_TAPE_LEFT', tapeType: 60 });
 
-      await giveTapes(a.user.id, 3, 2);
+      await giveTapes(a.user.id, 60, 2);
       const headers = idem();
       const sent = await send(
         a,
@@ -109,12 +137,12 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
       ).expect(201);
       expect(sent.body).toMatchObject({
         recipient: { userId: b.user.id, name: '받음' },
-        tapeType: 3,
+        tapeType: 60,
         tag: 'birthday',
         status: 'unopened',
         share: null,
       });
-      expect(await qtyOf(a.user.id, 3)).toBe(1);
+      expect(await qtyOf(a.user.id, 60)).toBe(1);
 
       const replay = await send(
         a,
@@ -123,7 +151,7 @@ describe('보내기 · 서랍 · 링크 · 친구 테이프 · 탈퇴 (e2e)', ()
       ).expect(201);
       expect(replay.headers['idempotent-replayed']).toBe('true');
       expect(replay.body.id).toBe(sent.body.id);
-      expect(await qtyOf(a.user.id, 3)).toBe(1);
+      expect(await qtyOf(a.user.id, 60)).toBe(1);
 
       const again = await send(a, {
         recordingId: rec,

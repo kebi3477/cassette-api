@@ -84,7 +84,13 @@ describe('정책 페이지 /privacy · /terms (e2e, 운영자 정보 없음)', (
     );
 
     const terms = (await request(app.getHttpServer()).get('/terms')).text;
-    expect(terms).toContain('버전 1.3');
+    expect(terms).toContain('버전 1.4');
+    expect(terms).toContain(
+      '15초 테이프는 무료로 제한 없이 쓸 수 있고, 1분·3분 테이프는',
+    );
+    expect(terms).toContain(
+      '테이프 구매(1분 1개 30, 5개 120 · 3분 1개 50, 5개 200)',
+    );
     expect(terms).toContain('결제일부터 7일 안에 청약철회를 할 수 있습니다');
     expect(terms).toContain('17조 2항 5호');
     expect(terms).toContain('크레딧에는 유효기간이 없습니다.');

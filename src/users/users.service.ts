@@ -8,11 +8,18 @@ import { RejoinService } from '../auth/rejoin.service.js';
 import { AppException } from '../common/errors/app.exception.js';
 import { Delivery } from '../deliveries/entities/delivery.entity.js';
 import { FriendsService } from '../friends/friends.service.js';
-import { Recording } from '../recordings/entities/recording.entity.js';
+import {
+  FREE_TAPE_TYPE,
+  Recording,
+} from '../recordings/entities/recording.entity.js';
 import { ShelfService } from '../shelf/shelf.service.js';
 import { MeResponse } from './dto/me.response.js';
 import { UpdateMeDto } from './dto/update-me.dto.js';
-import { TapeInventory } from './entities/tape-inventory.entity.js';
+import {
+  PAID_TAPE_TYPES,
+  TapeInventory,
+  type PaidTapeType,
+} from './entities/tape-inventory.entity.js';
 import { User } from './entities/user.entity.js';
 
 // 이름·별명 규칙은 common/utils/display-text.ts (친구 모듈과 순환 참조를 피하려고 분리)
@@ -54,7 +61,8 @@ export class UsersService {
         this.shelf.counts(userId),
         this.deliveries.countBy({ senderId: userId }),
       ]);
-    const qty = (t: 3 | 5) => stock.find((s) => s.tapeType === t)?.qty ?? 0;
+    const qty = (t: PaidTapeType) =>
+      stock.find((s) => s.tapeType === t)?.qty ?? 0;
     const { stored, unopened } = drawer;
     // 받은 테이프 수 = 지금 서랍에 있는 테이프 수 (디자인과 같음)
     const receivedCount = stored;
@@ -70,9 +78,8 @@ export class UsersService {
         unopenedCount: unopened,
       },
       tapes: [
-        { tapeType: 1, qty: null },
-        { tapeType: 3, qty: qty(3) },
-        { tapeType: 5, qty: qty(5) },
+        { tapeType: FREE_TAPE_TYPE, qty: null },
+        ...PAID_TAPE_TYPES.map((t) => ({ tapeType: t, qty: qty(t) })),
       ],
       stats: { receivedCount, sentCount, friendCount },
       providers: identities.map((i) => i.provider),

@@ -7,11 +7,18 @@ export interface ConvertJobData {
   recordingId: string;
 }
 
-/** 테이프별 녹음 한도(ms): 1분 60초, 3분 180초, 5분 300초 */
+/** 테이프별 녹음 한도(ms): 종류 코드가 곧 초다. 15초·1분·3분 */
 export const TAPE_LIMIT_MS: Record<TapeType, number> = {
-  1: 60_000,
-  3: 180_000,
-  5: 300_000,
+  15: 15_000,
+  60: 60_000,
+  180: 180_000,
+};
+
+/** 문구에 쓰는 테이프 이름 ("1분 테이프가 도착했어요", "3분 테이프 구매") */
+export const TAPE_NAMES: Record<TapeType, string> = {
+  15: '15초',
+  60: '1분',
+  180: '3분',
 };
 
 /** 앱이 알린 길이의 허용 오차 (정지 버튼 지연 등) */
