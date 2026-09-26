@@ -9,6 +9,9 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     globals: true,
+    // e2e는 실제 DB·Redis·HTTP를 거쳐서, 다른 작업이 CPU를 쓰는 기기에서는 기본 5초가 빠듯하다
+    testTimeout: 20_000,
+    hookTimeout: 30_000,
     root: './',
     include: ['**/*.e2e-spec.ts'],
     globalSetup: ['./test/global-setup.ts'],

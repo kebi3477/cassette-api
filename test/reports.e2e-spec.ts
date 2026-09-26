@@ -222,12 +222,16 @@ describe('신고 POST /reports (e2e)', () => {
 
   it('하루 20건 한도, 넘으면 429 RATE_LIMITED', async () => {
     const me = await devLogin(app, '많이');
-    const targets: AuthResponse[] = [];
-    for (let i = 0; i < 21; i++) {
-      const t = await devLogin(app, `대상${i}`);
-      await befriend(app, me, t);
-      targets.push(t);
-    }
+    // 대상 21명과 친구 관계는 DB에 한 번에 만든다. HTTP로 42번 부르면 부하가 걸린 기기에서
+    // 5초 제한을 넘겨 가끔 실패했다(한도 판정과는 무관한 준비 단계)
+    const rows: { id: string }[] = await ds.query(
+      `INSERT INTO users (name) SELECT '대상' || g FROM generate_series(1, 21) g RETURNING id`,
+    );
+    await ds.query(
+      `INSERT INTO friendships (user_id, friend_id, last_at) SELECT $1, u, now() FROM unnest($2::uuid[]) u`,
+      [me.user.id, rows.map((r) => r.id)],
+    );
+    const targets = rows.map((r) => ({ user: { id: r.id } }));
     for (let i = 0; i < 20; i++) {
       await report(me, {
         target: { type: 'user', userId: targets[i].user.id },
