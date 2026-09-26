@@ -254,6 +254,8 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 | `LINK_OWN` | 409 | 내가 보낸 테이프예요 | `deliveryId`, `url` | ✅ |
 | `INVALID_GIFT_AMOUNT` | 400 | 선물은 10, 30, 50, 100 크레딧만 할 수 있어요 | | ✅ |
 | `GIFT_NOT_ALLOWED` | 403 | 선물할 수 없는 친구예요 | | ✅ |
+| `REPORT_TARGET_NOT_FOUND` | 404 | 신고할 대상을 찾을 수 없어요 | | ✅ |
+| `CANNOT_REPORT_SELF` | 400 | 나는 신고할 수 없어요 | | ✅ |
 | `PRODUCT_NOT_FOUND` | 404 | 없는 상품이에요 | | ✅ |
 | `AD_LIMIT_REACHED` | 429 | 오늘은 다 받았어요 | (`POST /dev/credits`만) | ✅ |
 | `RECEIPT_INVALID` | 400 | 결제를 확인하지 못했어요 | | ✅ |
@@ -323,6 +325,7 @@ S3 저장소·ffmpeg 없이 맥 한 대로 전체 흐름(녹음 업로드 → �
 | ✅ | POST | `/billing/google/rtdn` | Google Play 실시간 알림(환불) @공개(Pub/Sub 인증) |
 | ✅ | PUT | `/notifications/devices` | FCM 토큰 등록 |
 | ✅ | DELETE | `/notifications/devices/{token}` | FCM 토큰 해제 |
+| ✅ | POST | `/reports` | 신고 (테이프 / 사람) 🔑 |
 | ✅ | POST | `/dev/friends` | 개발 전용: 가짜 친구 만들기 (운영 404) |
 | ✅ | POST | `/dev/credits` | 개발 전용: 크레딧 받기 (광고·충전 흉내) (운영 404) |
 | ✅ | POST | `/dev/seed` | 개발 전용: 프로토타입 초기 데이터 (운영 404) |
@@ -715,6 +718,35 @@ PUT이 끝나면 부른다. 서버가 파일이 있는지·크기를 확인하�
 - 내용과 버전 관리는 `src/policy/`, 확인이 필요한 항목은 `docs/policy.md`
 ---
 
+## 12-1. reports (신고)
+
+Apple 심사 가이드라인 1.2(사용자 생성 콘텐츠: 신고·차단·연락처)를 위한 신고. 신고 화면은 디자인을 받은 뒤 앱에 붙인다.
+
+### ✅ `POST /reports` 🔑
+```json
+{
+  "target": { "type": "tape", "deliveryId": "…" },
+  "reason": "harassment",
+  "memo": "선택, 최대 300자",
+  "alsoBlock": true
+}
+```
+| 필드 | 필수 | 값 |
+|---|---|---|
+| `target` | O | `{ "type": "tape", "deliveryId" }`: **내가 받은**(서랍에 보이는) 테이프만 · `{ "type": "user", "userId" }`: **나와 친구이거나 나에게 테이프를 보낸 적이 있는** 사람만(차단한 뒤에도 가능) |
+| `reason` | O | `harassment`(괴롭힘·혐오) · `sexual`(성적인 내용) · `spam`(스팸·광고) · `illegal`(불법·권리 침해) · `impersonation`(사칭) · `other`(기타). 화면 문구는 앱이 가진다 |
+| `memo` | | 최대 300자 (앞뒤 공백 제거, 비우면 없음) |
+| `alsoBlock` | | `true`면 같은 트랜잭션에서 차단한다(테이프면 보낸 사람, 사람이면 그 사람). `POST /friends/{userId}/block`과 같은 동작. 보낸 사람이 탈퇴한 테이프면 차단은 건너뛴다 |
+
+- 응답 `201 { "id": "…", "createdAt": "…" }`
+- **같은 대상을 24시간 안에 다시 신고하면** 새로 만들지 않고 **기존 신고**를 `201`로 돌려준다(오류 아님, 한도에도 세지 않음). `alsoBlock`은 그때도 적용한다
+- 요청 제한: 사용자당 24시간에 20건. 넘으면 `429 RATE_LIMITED`
+- 오류: `404 REPORT_TARGET_NOT_FOUND`(대상이 없거나 신고할 수 없는 대상), `400 CANNOT_REPORT_SELF`, `400 VALIDATION_FAILED`
+- 테이프를 신고해도 녹음 파일은 복사하지 않는다. 운영자에게는 서버 로그(`warn`)와 `REPORT_WEBHOOK_URL`(설정 시)로 신고 번호·사유·대상 유형만 알린다. 운영자 조회·상태 변경은 `ops/reports/reports.sh`(`docs/deploy.md`)
+- 보관: 3년. 신고자가 탈퇴하면 신고자 연결만 끊고 남긴다
+
+---
+
 ## 13. wallet
 
 ### ✅ `GET /wallet`
@@ -951,6 +983,7 @@ FCM HTTP v1로 보낸다(`notification` + `data`). `notificationsEnabled: false`
 | 날짜 | 내용 |
 |---|---|
 | 2026-09-25 | 1단계: 전체 계약 초안. app-version, auth(카카오·Apple·개발), users, friends(즐겨찾기·빼기·차단), dev 구현 |
+| 2026-09-26 | 신고 `POST /reports` 🔑 추가(테이프·사람, 24시간 중복 신고는 기존 신고 반환, 하루 20건, `alsoBlock`), 오류 코드 `REPORT_TARGET_NOT_FOUND`·`CANNOT_REPORT_SELF`. 개인정보 처리방침·이용약관 1.2 |
 | 2026-09-26 | 개인정보 처리방침·이용약관 1.1 (정책 결정 반영, `docs/policy.md`). 녹음 원본은 변환이 끝나면 삭제, 5년 지난 결제 기록 자동 파기 (응답 변경 없음) |
 | 2026-09-25 | 개인정보 처리방침 `GET /privacy`·이용약관 `GET /terms` 추가 (HTML, `/api` 밖, 앱 설정 → 정보와 스토어 등록 URL용) |
 | 2026-09-25 | 정책 확정: 탈퇴 후 30일 재가입 제한(`403 REJOIN_RESTRICTED` + `availableAt`, 30일 뒤 재가입 시 가입 선물 다시 지급), 탈퇴 데이터 정책 확정, 만료 링크 다시 공유 동작 확정 |

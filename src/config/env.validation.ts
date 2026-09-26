@@ -204,6 +204,14 @@ export class EnvironmentVariables {
   @IsString()
   APPLE_SIGN_IN_PRIVATE_KEY?: string;
 
+  /** 신고가 들어오면 JSON을 POST할 웹훅 (슬랙·디스코드 등). 없으면 로그만 */
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  )
+  @IsUrl({ require_tld: false })
+  REPORT_WEBHOOK_URL?: string;
+
   // ---- 개인정보 처리방침 · 이용약관 (/privacy, /terms). 비어 있으면 페이지에 "준비 중"으로 표시 ----
 
   /** 상호 또는 운영자 이름 */

@@ -13,6 +13,7 @@ import { OperatorInfo, PENDING, PolicyDocument } from './types.js';
  * - 테이프: recordings/entities, deliveries/entities, shelf/entities · 파일: storage/ (변환본. 원본 raw는 변환이 끝나면 지운다: recordings.processor.ts)
  * - 친구·차단: friends/entities · 크레딧: wallet/entities, users/entities/tape-inventory.entity.ts
  * - 결제: billing/entities (iap_purchases, billing_events) · 광고: wallet/entities/ad-reward.entity.ts
+ * - 신고: reports/entities/report.entity.ts (3년 보관, 탈퇴하면 신고자 연결만 끊음), 알림: reports/report-notifier.service.ts
  * - 푸시: notifications/entities/device-token.entity.ts · 탈퇴 해시: auth/entities/withdrawn-identity.entity.ts
  * - 기간: JWT_REFRESH_TTL 60일, 멱등 키 24시간·방치 업로드 1시간(jobs/), 링크 7일(SHARE_LINK_TTL_MS),
  *   재가입 제한 30일(REJOIN_COOLDOWN_DAYS), 로그 10MB×5(docker-compose), DB 백업 14개(PG_BACKUP_KEEP)
@@ -27,7 +28,7 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
   return {
     kind: 'privacy',
     title: '개인정보 처리방침',
-    version: '1.1',
+    version: '1.2',
     effectiveDate: op.effectiveDate,
     intro: [
       `${operator}(이하 '운영자')는 목소리를 테이프에 녹음해 보내는 앱 카세트(cassette)와 링크 웹 페이지(이하 '서비스')를 운영하면서, 「개인정보 보호법」에 따라 이용자의 개인정보를 보호하고 관련 고충을 빠르게 처리하기 위해 이 처리방침을 둡니다.`,
@@ -47,6 +48,7 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
           '광고 보상: 광고를 끝까지 본 경우에만 보상을 지급하고 하루 지급 횟수를 제한합니다.',
           '알림: 테이프 도착, 링크 테이프 받음, 크레딧 선물 알림을 보냅니다.',
           '부정 이용 방지: 같은 요청이 두 번 처리되지 않게 하고, 요청 횟수를 제한하며, 탈퇴 후 30일 동안 같은 계정의 재가입을 제한합니다.',
+          '신고 처리: 테이프나 사람에 대한 신고를 받아 확인하고 조치합니다.',
         ],
       },
       {
@@ -97,6 +99,11 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
               '결제',
               '스토어 종류, 거래 번호, 상품, 지급 크레딧, Google Play 구매 토큰, 결제 환경(운영·테스트), 환불 여부와 시각, 스토어가 보낸 결제 알림 내용',
               '결제 후 앱과 스토어에서 받음. 카드번호 등 결제 수단 정보는 스토어가 처리하며 운영자는 받지 않습니다.',
+            ],
+            [
+              '신고',
+              '신고한 사람, 신고 대상(받은 테이프 또는 사람), 테이프를 신고한 경우 그 테이프를 보낸 사람, 신고 사유, 신고자가 적은 메모(선택, 최대 300자), 처리 상태, 신고 시각',
+              '이용자가 앱에서 신고할 때. 테이프를 신고해도 녹음 파일을 따로 복사하지 않으며, 운영자는 확인이 필요할 때 기존 기록을 조회합니다.',
             ],
             [
               '광고 보상',
@@ -173,6 +180,10 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
               '「전자상거래 등에서의 소비자보호에 관한 법률」에 따라 5년. 탈퇴하면 회원과의 연결만 끊고 보관하며, 5년이 지나면 매시간 도는 정리 작업이 삭제합니다.',
             ],
             [
+              '신고 기록',
+              '3년(신고 처리 이력 보관). 신고한 사람이 탈퇴하면 신고한 사람과의 연결만 끊고 보관하며, 3년이 지나면 매시간 도는 정리 작업이 삭제합니다.',
+            ],
+            [
               '탈퇴한 계정 식별자의 해시값',
               '30일(재가입 제한 기간). 기간이 지나면 매시간 도는 정리 작업이 삭제합니다.',
             ],
@@ -240,6 +251,7 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
           ],
         },
         notes: [
+          '신고가 들어오면 운영자가 확인할 수 있도록 신고 번호, 사유, 대상 유형만 운영자의 알림 도구로 보내며, 이름·메모 등 개인정보는 보내지 않습니다.',
           '위 곳들은 각자의 개인정보 처리방침에 따라 정보를 처리합니다. 국외 이전을 원하지 않으면 해당 기능을 쓰지 않을 수 있습니다(예: 알림 끄기, 결제·광고 보상을 이용하지 않기). 다만 로그인은 카카오나 Apple 중 하나가 필요합니다.',
         ],
       },
@@ -314,6 +326,11 @@ export function privacyPolicy(op: OperatorInfo): PolicyDocument {
       },
     ],
     history: [
+      {
+        version: '1.2',
+        summary:
+          '신고 기능 추가: 신고 처리 목적, 신고 기록 항목과 보유 기간(3년), 신고 알림에 개인정보를 넣지 않음',
+      },
       {
         version: '1.1',
         summary:

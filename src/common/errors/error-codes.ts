@@ -162,6 +162,16 @@ export const ErrorCodes = {
     status: HttpStatus.CONFLICT,
     message: '내가 보낸 테이프예요',
   },
+  // reports
+  REPORT_TARGET_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    message: '신고할 대상을 찾을 수 없어요',
+  },
+  CANNOT_REPORT_SELF: {
+    status: HttpStatus.BAD_REQUEST,
+    message: '나는 신고할 수 없어요',
+  },
+
   // wallet · shop
   INVALID_GIFT_AMOUNT: {
     status: HttpStatus.BAD_REQUEST,

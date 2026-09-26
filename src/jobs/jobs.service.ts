@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { RejoinService } from '../auth/rejoin.service.js';
 import { BillingService } from '../billing/billing.service.js';
 import { Recording } from '../recordings/entities/recording.entity.js';
+import { ReportsService } from '../reports/reports.service.js';
 import { ShelfService } from '../shelf/shelf.service.js';
 import { StorageService } from '../storage/storage.service.js';
 
@@ -24,6 +25,7 @@ export class JobsService {
     private readonly billing: BillingService,
     private readonly rejoin: RejoinService,
     private readonly storage: StorageService,
+    private readonly reports: ReportsService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR, { name: 'hourly-cleanup' })
@@ -36,6 +38,7 @@ export class JobsService {
       ['재가입 제한 기록', () => this.rejoin.cleanupExpired()],
       ['변환 끝난 녹음 원본', () => this.cleanupReadyRaw()],
       ['5년 지난 결제 기록', () => this.billing.purgeExpiredPaymentRecords()],
+      ['3년 지난 신고 기록', () => this.reports.purgeExpired()],
     ] as const) {
       try {
         const n = await job();

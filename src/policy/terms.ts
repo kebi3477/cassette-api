@@ -14,7 +14,7 @@ export function termsOfService(op: OperatorInfo): PolicyDocument {
   return {
     kind: 'terms',
     title: '이용약관',
-    version: '1.1',
+    version: '1.2',
     effectiveDate: op.effectiveDate,
     intro: [
       `이 약관은 ${operator}(이하 '운영자')가 제공하는 카세트(cassette) 앱과 웹 페이지(이하 '서비스')를 이용하는 조건과 절차, 운영자와 이용자의 권리·의무를 정합니다.`,
@@ -129,7 +129,7 @@ export function termsOfService(op: OperatorInfo): PolicyDocument {
           '테이프의 내용과 그로 인한 책임은 테이프를 녹음해 보낸 회원에게 있습니다.',
           '운영자는 테이프의 내용을 사람이 미리 듣거나 검토하지 않습니다.',
           '원하지 않는 테이프를 받았다면 보낸 사람을 차단할 수 있습니다. 차단한 사람이 보낸 테이프와 선물은 받지 않습니다.',
-          '권리 침해나 불법 테이프는 아래 문의 이메일로 신고할 수 있습니다(앱 안의 신고 기능은 아직 없습니다). 운영자는 신고 내용을 확인한 뒤 필요한 조치를 합니다.',
+          '불쾌하거나 불법인 테이프, 권리를 침해하는 테이프, 그런 테이프를 보내는 사람은 앱 안의 신고 기능이나 아래 문의 이메일로 신고할 수 있습니다. 앱에서 신고할 때 그 사람을 함께 차단할 수 있습니다. 운영자는 신고 내용을 확인한 뒤 필요한 조치를 합니다.',
         ],
       },
       {
@@ -137,7 +137,7 @@ export function termsOfService(op: OperatorInfo): PolicyDocument {
         title: '12. 이용 제한',
         paragraphs: [
           '회원이 이 약관, 특히 10조의 금지 행위를 어기면 운영자는 신고나 문의 내용을 확인한 뒤 사안에 따라 경고, 기능 이용 제한, 계정 삭제를 할 수 있습니다. 부정하게 얻은 크레딧은 회수할 수 있습니다.',
-          '이용 제한에 관한 신고, 소명, 문의는 아래 문의 이메일로 받습니다.',
+          '신고는 앱 안의 신고 기능과 문의 이메일로 받고, 이용 제한에 관한 소명과 문의는 문의 이메일로 받습니다.',
         ],
       },
       {
@@ -191,6 +191,11 @@ export function termsOfService(op: OperatorInfo): PolicyDocument {
       },
     ],
     history: [
+      {
+        version: '1.2',
+        summary:
+          '앱 안 신고 기능 추가(신고할 때 함께 차단 가능), 신고 창구를 앱 안 신고와 문의 이메일로 정리',
+      },
       {
         version: '1.1',
         summary:

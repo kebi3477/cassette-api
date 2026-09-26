@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AppException } from '../common/errors/app.exception.js';
 import { User } from '../users/entities/user.entity.js';
 import {
@@ -77,33 +77,46 @@ export class FriendsService {
     const target = await this.users.findOneBy({ id: targetId });
     if (!target) throw new AppException('USER_NOT_FOUND');
 
-    const block = await this.dataSource.transaction(async (manager) => {
-      const existing = await manager.findOneBy(Block, {
-        userId,
-        blockedId: targetId,
-      });
-      if (existing) return existing;
-      const friendship = await manager.findOneBy(Friendship, {
-        userId,
-        friendId: targetId,
-      });
-      if (friendship)
-        await manager.delete(Friendship, { userId, friendId: targetId });
-      return manager.save(
-        manager.create(Block, {
-          userId,
-          blockedId: targetId,
-          wasFriend: !!friendship,
-          friendStarred: friendship?.starred ?? false,
-          friendLastAt: friendship?.lastAt ?? null,
-        }),
-      );
-    });
+    const block = await this.dataSource.transaction((manager) =>
+      this.blockInTransaction(manager, userId, targetId),
+    );
     return {
       userId: targetId,
       name: target.name ?? UNNAMED,
       blockedAt: block.createdAt.toISOString(),
     };
+  }
+
+  /**
+   * 차단 (호출하는 쪽의 트랜잭션 안에서). 이미 차단했으면 그대로 돌려준다.
+   * 내 친구 목록에서 빼고, 해제할 때 되돌릴 수 있도록 친구였는지·즐겨찾기·마지막 시각을 남긴다.
+   * 신고와 함께 차단할 때(reports)도 쓴다.
+   */
+  async blockInTransaction(
+    manager: EntityManager,
+    userId: string,
+    targetId: string,
+  ): Promise<Block> {
+    const existing = await manager.findOneBy(Block, {
+      userId,
+      blockedId: targetId,
+    });
+    if (existing) return existing;
+    const friendship = await manager.findOneBy(Friendship, {
+      userId,
+      friendId: targetId,
+    });
+    if (friendship)
+      await manager.delete(Friendship, { userId, friendId: targetId });
+    return manager.save(
+      manager.create(Block, {
+        userId,
+        blockedId: targetId,
+        wasFriend: !!friendship,
+        friendStarred: friendship?.starred ?? false,
+        friendLastAt: friendship?.lastAt ?? null,
+      }),
+    );
   }
 
   async listBlocked(
